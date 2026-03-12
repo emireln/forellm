@@ -1,0 +1,5 @@
+/target
+forellm
+/docs
+forellm-desktop/gen/schemas/*
+data/gguf_sources_cache.json
