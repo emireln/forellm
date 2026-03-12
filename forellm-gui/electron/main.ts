@@ -139,12 +139,14 @@ function registerIpc(): void {
 }
 
 function createWindow(): void {
+  const iconPath = path.join(__dirname, '..', '..', 'assets', 'icon.png')
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
     minWidth: 1024,
     minHeight: 700,
     backgroundColor: '#09090b',
+    icon: iconPath,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
