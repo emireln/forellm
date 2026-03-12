@@ -1,0 +1,22 @@
+{
+  "productName": "ForeLLM",
+  "version": "0.4.8",
+  "identifier": "com.forellm.desktop",
+  "build": {
+    "frontendDist": "./ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "ForeLLM — LLM Hardware Fitting",
+        "width": 1200,
+        "height": 800,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self'; script-src 'self'"
+    }
+  }
+}
