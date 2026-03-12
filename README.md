@@ -12,7 +12,7 @@
 
 A terminal tool that right-sizes LLM models to your system's RAM, CPU, and GPU. Detects your hardware, scores each model across quality, speed, fit, and context dimensions, and tells you which ones will actually run well on your machine.
 
-Ships with an interactive TUI (default) and a classic CLI mode. Supports multi-GPU setups, MoE architectures, dynamic quantization selection, speed estimation, and local runtime providers (Ollama, llama.cpp, MLX).
+Ships with an interactive **TUI** (default), a **classic CLI**, a **REST API** (`forellm serve`), and an optional **desktop GUI** (Electron + React) for a visual dashboard. Supports multi-GPU setups, MoE architectures, dynamic quantization selection, speed estimation, and local runtime providers (Ollama, llama.cpp, MLX).
 
 **By Emir Lima.**
 
@@ -234,6 +234,30 @@ forellm --max-context 16384 recommend --json --limit 5
 
 If `--max-context` is not set, ForeLLM will use `OLLAMA_CONTEXT_LENGTH` when available.
 
+### Desktop GUI (Electron)
+
+An optional visual dashboard runs the `forellm` binary under the hood and displays results in a dark, high-density interface. Requires Node.js and the `forellm` CLI built first.
+
+```sh
+# Build the CLI
+cargo build --release
+
+# Run the GUI (from repo root)
+cd forellm-gui
+npm install
+npm run dev
+```
+
+**Features:**
+
+- **System telemetry** — Gauges for RAM, VRAM, and CPU cores from `forellm system --json`
+- **What-If simulator** — Override VRAM (e.g. "RTX 4090", "A100 80GB") and recalculate fit scores via `forellm fit --memory XG`
+- **Model explorer** — Sortable table with Fit badges, quantization matrix, and context slider (2k–128k) that updates required memory in real time
+- **Multi-model cart** — Add several models (LLM + embedding + etc.) and see cumulative VRAM/RAM usage
+- **Run via Ollama** — Copy the exact `ollama run <tag>` or `forellm download` command for each model
+
+The GUI is in `forellm-gui/` (Electron + React + Tailwind). Set `FORELLM_PATH` to the binary if it is not in `../target/release/forellm`.
+
 ### JSON output
 
 Add `--json` to any subcommand for machine-readable output:
@@ -349,25 +373,35 @@ By default, the scraper enriches models with known GGUF download sources from pr
 ## Project structure
 
 ```
-src/
-  main.rs         -- CLI argument parsing, entrypoint, TUI launch
-  hardware.rs     -- System RAM/CPU/GPU detection (multi-GPU, backend identification)
-  models.rs       -- Model database, quantization hierarchy, dynamic quant selection
-  fit.rs          -- Multi-dimensional scoring (Q/S/F/C), speed estimation, MoE offloading
-  providers.rs    -- Runtime provider integration (Ollama, llama.cpp, MLX), install detection, pull/download
-  display.rs      -- Classic CLI table rendering + JSON output
-  tui_app.rs      -- TUI application state, filters, navigation
-  tui_ui.rs       -- TUI rendering (ratatui)
-  tui_events.rs   -- TUI keyboard event handling (crossterm)
+forellm-core/       -- Core library: hardware detection, fit scoring, model DB, providers
+  src/
+    hardware.rs     -- System RAM/CPU/GPU detection (multi-GPU, backend identification)
+    models.rs       -- Model database, quantization hierarchy, dynamic quant selection
+    fit.rs          -- Multi-dimensional scoring (Q/S/F/C), speed estimation, MoE offloading
+    providers.rs    -- Runtime provider integration (Ollama, llama.cpp, MLX), pull/download
+    plan.rs         -- Hardware planning (what-if for a given model config)
+forellm-tui/        -- CLI + TUI binary (forellm)
+  src/
+    main.rs         -- CLI argument parsing, entrypoint, TUI launch
+    display.rs     -- Classic CLI table rendering + JSON output
+    tui_app.rs     -- TUI application state, filters, navigation
+    tui_ui.rs      -- TUI rendering (ratatui)
+    tui_events.rs  -- TUI keyboard event handling (crossterm)
+    serve_api.rs   -- REST API (forellm serve)
+forellm-desktop/    -- Tauri desktop app (macOS; alternate to Electron GUI)
+forellm-gui/        -- Electron + React desktop dashboard (optional)
+  electron/        -- Main process: spawns forellm binary, IPC handlers
+  src/             -- React app: system telemetry, hardware simulator, model explorer, cart
 data/
-  hf_models.json  -- Model database (206 models)
+  hf_models.json   -- Model database (embedded at compile time)
 skills/
   forellm-advisor/ -- OpenClaw skill for hardware-aware model recommendations
 scripts/
-  scrape_hf_models.py        -- HuggingFace API scraper
+  scrape_hf_models.py         -- HuggingFace API scraper
   update_models.sh            -- Automated database update script
   install-openclaw-skill.sh   -- Install the OpenClaw skill
-Makefile           -- Build and maintenance commands
+  test_api.py                 -- REST API validation tests
+Makefile            -- Build and maintenance commands
 ```
 
 ---
