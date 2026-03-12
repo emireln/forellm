@@ -1,7 +1,7 @@
 # ForeLLM
 
 <p align="center">
-  <img src="assets/icon.svg" alt="ForeLLM icon" width="128" height="128">
+  <img src="assets/icon.png" alt="ForeLLM icon" width="128" height="128">
 </p>
 <p align="center">
   <a href="https://github.com/emireln/forellm"><img src="https://img.shields.io/badge/github-emireln%2Fforellm-blue?logo=github" alt="GitHub"></a>
@@ -15,8 +15,6 @@ A terminal tool that right-sizes LLM models to your system's RAM, CPU, and GPU. 
 Ships with an interactive **TUI** (default), a **classic CLI**, a **REST API** (`forellm serve`), and an optional **desktop GUI** (Electron + React) for a visual dashboard. Supports multi-GPU setups, MoE architectures, dynamic quantization selection, speed estimation, and local runtime providers (Ollama, llama.cpp, MLX).
 
 **By Emir Lima.**
-
-![demo](demo.gif)
 
 ---
 
@@ -431,7 +429,7 @@ curl -sL https://opensource.org/license/MIT -o LICENSE
 ```
 
 - `data/hf_models.json` is committed. It is embedded at compile time and must be present in the published crate.
-- The `exclude` list in `Cargo.toml` keeps `target/`, `scripts/`, and `demo.gif` out of the published crate to keep the download small.
+- The `exclude` list in `Cargo.toml` keeps `target/` and `scripts/` out of the published crate to keep the download small.
 
 To publish updates:
 
