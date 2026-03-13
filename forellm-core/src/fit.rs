@@ -1,6 +1,12 @@
 use crate::hardware::{GpuBackend, SystemSpecs};
 use crate::models::{self, LlmModel, UseCase};
 
+/// Minimum headroom ratio: we require available >= required * this to avoid declaring a fit
+/// when the system would be at 100% and likely OOM (e.g. KV cache spikes).
+const MIN_HEADROOM_RATIO: f64 = 1.03;
+/// Headroom ratio above minimum required for "Good" fit (vs "Marginal") on GPU/offload paths.
+const GOOD_FIT_HEADROOM_RATIO: f64 = 1.2;
+
 /// Inference runtime — the software framework used for inference.
 /// Orthogonal to `GpuBackend` which represents hardware.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -23,6 +29,8 @@ impl InferenceRuntime {
 /// Column to sort model fits by in the TUI/UI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SortColumn {
+    /// Default: fit level (Perfect > Good > Marginal), then run mode, then utilization.
+    Fit,
     Score,
     Tps,
     Params,
@@ -35,6 +43,7 @@ pub enum SortColumn {
 impl SortColumn {
     pub fn label(&self) -> &str {
         match self {
+            SortColumn::Fit => "Fit",
             SortColumn::Score => "Score",
             SortColumn::Tps => "tok/s",
             SortColumn::Params => "Params",
@@ -47,13 +56,14 @@ impl SortColumn {
 
     pub fn next(&self) -> Self {
         match self {
+            SortColumn::Fit => SortColumn::Score,
             SortColumn::Score => SortColumn::Tps,
             SortColumn::Tps => SortColumn::Params,
             SortColumn::Params => SortColumn::MemPct,
             SortColumn::MemPct => SortColumn::Ctx,
             SortColumn::Ctx => SortColumn::ReleaseDate,
             SortColumn::ReleaseDate => SortColumn::UseCase,
-            SortColumn::UseCase => SortColumn::Score,
+            SortColumn::UseCase => SortColumn::Fit,
         }
     }
 }
@@ -381,7 +391,7 @@ fn score_fit(
     recommended: f64,
     run_mode: RunMode,
 ) -> FitLevel {
-    if mem_required > mem_available {
+    if mem_required * MIN_HEADROOM_RATIO > mem_available {
         return FitLevel::TooTight;
     }
 
@@ -389,7 +399,7 @@ fn score_fit(
         RunMode::Gpu => {
             if recommended <= mem_available {
                 FitLevel::Perfect
-            } else if mem_available >= mem_required * 1.2 {
+            } else if mem_available >= mem_required * GOOD_FIT_HEADROOM_RATIO {
                 FitLevel::Good
             } else {
                 FitLevel::Marginal
@@ -398,7 +408,7 @@ fn score_fit(
         RunMode::MoeOffload => {
             // MoE expert offloading -- GPU handles inference, inactive experts in RAM
             // Good performance with some latency on expert switching
-            if mem_available >= mem_required * 1.2 {
+            if mem_available >= mem_required * GOOD_FIT_HEADROOM_RATIO {
                 FitLevel::Good
             } else {
                 FitLevel::Marginal
@@ -406,7 +416,7 @@ fn score_fit(
         }
         RunMode::CpuOffload => {
             // Mixed GPU/CPU -- decent but not ideal
-            if mem_available >= mem_required * 1.2 {
+            if mem_available >= mem_required * GOOD_FIT_HEADROOM_RATIO {
                 FitLevel::Good
             } else {
                 FitLevel::Marginal
@@ -579,6 +589,24 @@ pub fn backend_compatible(model: &LlmModel, system: &SystemSpecs) -> bool {
     }
 }
 
+fn fit_level_rank(f: FitLevel) -> u8 {
+    match f {
+        FitLevel::Perfect => 0,
+        FitLevel::Good => 1,
+        FitLevel::Marginal => 2,
+        FitLevel::TooTight => 3,
+    }
+}
+
+fn run_mode_rank(r: RunMode) -> u8 {
+    match r {
+        RunMode::Gpu => 0,
+        RunMode::MoeOffload => 1,
+        RunMode::CpuOffload => 2,
+        RunMode::CpuOnly => 3,
+    }
+}
+
 pub fn rank_models_by_fit(models: Vec<ModelFit>) -> Vec<ModelFit> {
     rank_models_by_fit_opts(models, false)
 }
@@ -614,6 +642,20 @@ pub fn rank_models_by_fit_opts_col(
 
         // Sort by selected column
         match sort_column {
+            SortColumn::Fit => {
+                // Best fit first: fit level (Perfect > Good > Marginal), then run mode, then utilization (lower = more headroom)
+                let fit_ord = fit_level_rank(a.fit_level).cmp(&fit_level_rank(b.fit_level));
+                if fit_ord != std::cmp::Ordering::Equal {
+                    return fit_ord;
+                }
+                let mode_ord = run_mode_rank(a.run_mode).cmp(&run_mode_rank(b.run_mode));
+                if mode_ord != std::cmp::Ordering::Equal {
+                    return mode_ord;
+                }
+                a.utilization_pct
+                    .partial_cmp(&b.utilization_pct)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            }
             SortColumn::Score => b
                 .score
                 .partial_cmp(&a.score)

@@ -340,8 +340,9 @@ enum RuntimeFilter {
 }
 
 fn parse_sort(raw: Option<&str>) -> Result<SortColumn, ApiError> {
-    let value = raw.unwrap_or("score").trim().to_lowercase();
+    let value = raw.unwrap_or("fit").trim().to_lowercase();
     let sort = match value.as_str() {
+        "fit" => SortColumn::Fit,
         "score" => SortColumn::Score,
         "tps" | "tokens" | "throughput" => SortColumn::Tps,
         "params" | "parameters" => SortColumn::Params,
@@ -351,7 +352,7 @@ fn parse_sort(raw: Option<&str>) -> Result<SortColumn, ApiError> {
         "use" | "use_case" | "usecase" => SortColumn::UseCase,
         _ => {
             return Err(ApiError::bad_request(
-                "invalid sort value: use score|tps|params|mem|ctx|date|use_case",
+                "invalid sort value: use fit|score|tps|params|mem|ctx|date|use_case",
             ));
         }
     };

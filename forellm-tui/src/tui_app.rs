@@ -265,8 +265,12 @@ impl App {
             })
             .collect();
 
-        // Sort by fit level then RAM usage
-        all_fits = forellm_core::fit::rank_models_by_fit(all_fits);
+        // Sort by fit (fit level, run mode, utilization) so app opens without Score filter
+        all_fits = forellm_core::fit::rank_models_by_fit_opts_col(
+            all_fits,
+            false,
+            forellm_core::fit::SortColumn::Fit,
+        );
 
         // Extract unique providers
         let mut model_providers: Vec<String> = all_fits
@@ -315,7 +319,7 @@ impl App {
             fit_filter: FitFilter::All,
             availability_filter: AvailabilityFilter::All,
             installed_first: false,
-            sort_column: SortColumn::Score,
+            sort_column: SortColumn::Fit,
             selected_row: 0,
             show_detail: false,
             show_compare: false,
