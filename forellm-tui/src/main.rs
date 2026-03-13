@@ -13,7 +13,9 @@ use forellm_core::plan::{PlanRequest, estimate_model_plan, resolve_model_selecto
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
 enum SortArg {
-    /// Composite ranking score (default)
+    /// Fit quality: fit level, run mode, utilization (default for TUI)
+    Fit,
+    /// Composite ranking score
     Score,
     /// Estimated tokens/second
     #[value(alias = "tokens", alias = "toks", alias = "throughput")]
@@ -37,6 +39,7 @@ enum SortArg {
 impl From<SortArg> for SortColumn {
     fn from(value: SortArg) -> Self {
         match value {
+            SortArg::Fit => SortColumn::Fit,
             SortArg::Score => SortColumn::Score,
             SortArg::Tps => SortColumn::Tps,
             SortArg::Params => SortColumn::Params,
@@ -101,7 +104,7 @@ struct Cli {
     all: bool,
 
     /// Sort column for CLI fit output
-    #[arg(long, value_enum, default_value_t = SortArg::Score)]
+    #[arg(long, value_enum, default_value_t = SortArg::Fit)]
     sort: SortArg,
 
     /// Use classic CLI table output instead of TUI

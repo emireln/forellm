@@ -454,6 +454,7 @@ fn draw_table(frame: &mut Frame, app: &mut App, area: Rect, tc: &ThemeColors) {
         "Ctx", "Date", "Fit", "Use Case",
     ];
     let sort_col_idx: Option<usize> = match sort_col {
+        SortColumn::Fit => Some(12),
         SortColumn::Score => Some(5),
         SortColumn::Tps => Some(6),
         SortColumn::Params => Some(4),
