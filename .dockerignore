@@ -1,41 +1,16 @@
-# Build artifacts
 target/
-*.swp
-*.swo
-*~
-
-# IDE
-.vscode/
-.idea/
-*.iml
-
-# Git
 .git/
 .gitignore
-.githooks/
-
-# Documentation and assets
 *.md
-!README.md
-*.png
-*.gif
-download.gif
-home_laptop.png
-moe.png
-assets/
-.github/
-
-# Scripts (not needed in container)
+!forellm-core/README.md
+!forellm-tui/README.md
+website/
+forellm-gui/
 scripts/
-install.sh
-
-# Website files
-index.html
-CNAME
-
-# Release metadata
-.release-please-manifest.json
-
-# Skills (OpenClaw integration, not needed in container)
-skills/
-AGENTS.md
+assets/
+docs/
+.cursor/
+*.png
+*.jpg
+Dockerfile
+.dockerignore

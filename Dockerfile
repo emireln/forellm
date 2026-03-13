@@ -1,47 +1,17 @@
-# Multi-stage build for ForeLLM
-# Stage 1: Build the Rust binary
-FROM rust:1.88-slim AS builder
+# Build stage: Rust 1.85+ required for edition 2024
+FROM rust:slim-bookworm AS builder
+WORKDIR /app
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    pkg-config \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
+COPY . .
+RUN cargo build --release
 
-# Set working directory
-WORKDIR /build
-
-# Copy workspace configuration
-COPY Cargo.toml Cargo.lock ./
-
-# Copy all workspace members
-COPY forellm-core/ ./forellm-core/
-COPY forellm-tui/ ./forellm-tui/
-COPY forellm-desktop/ ./forellm-desktop/
-COPY data/ ./data/
-
-# Build release binary for forellm-tui
-RUN cargo build --release -p forellm
-
-# Stage 2: Runtime image
+# Runtime stage
 FROM debian:bookworm-slim
-
-# Install runtime dependencies for hardware detection
-RUN apt-get update && apt-get install -y \
-    pciutils \
-    lshw \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the binary from builder
-COPY --from=builder /build/target/release/forellm /usr/local/bin/forellm
+COPY --from=builder /app/target/release/forellm /usr/local/bin/forellm
 
-# Create a non-root user
-RUN useradd -m -u 1000 forellm && \
-    chown -R forellm:forellm /usr/local/bin/forellm
-
-USER forellm
-
-# Set default command to output JSON recommendations
-# In Kubernetes, this will run once per node and log results
-ENTRYPOINT ["/usr/local/bin/forellm"]
-CMD ["recommend", "--json"]
+ENTRYPOINT ["forellm"]
+CMD ["--help"]
