@@ -8,12 +8,15 @@ interface Props {
   system: SystemInfo | null
   hardwareOverride: HardwareOverride | null
   onSimulate: (override: HardwareOverride | null) => void
+  /** When true, render only the form (no panel wrapper or header). For use inside HardwarePanel. */
+  compact?: boolean
 }
 
 function HardwareSimulatorInner({
   system,
   hardwareOverride,
-  onSimulate
+  onSimulate,
+  compact = false
 }: Props) {
   const [customVram, setCustomVram] = useState('')
   const [customRam, setCustomRam] = useState('')
@@ -79,23 +82,14 @@ function HardwareSimulatorInner({
     setCustomCores('')
   }
 
-  return (
-    <div className="panel animate-sidebar-in animate-sidebar-in-delay-1">
-      <div className="panel-header">
-        <FlaskConical className="h-3.5 w-3.5 text-amber-400" />
-        What-If Simulator
-        {simulating && (
-          <span className="ml-auto rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-medium text-amber-400">
-            ACTIVE
-          </span>
-        )}
-      </div>
-
-      <div className="space-y-4 p-4">
+  const formContent = (
+    <div className={compact ? 'space-y-4' : 'space-y-4 p-4'}>
+      {!compact && (
         <p className="text-[11px] leading-relaxed text-zinc-500">
           Build a virtual hardware profile (VRAM, RAM, CPU cores). Model fit and scores
           update for the simulated system.
         </p>
+      )}
 
         {/* Active hardware summary */}
         <div className="space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2.5">
@@ -212,6 +206,22 @@ function HardwareSimulatorInner({
           )}
         </div>
       </div>
+  )
+
+  if (compact) return formContent
+
+  return (
+    <div className="panel animate-sidebar-in animate-sidebar-in-delay-1">
+      <div className="panel-header">
+        <FlaskConical className="h-3.5 w-3.5 text-amber-400" />
+        What-If Simulator
+        {simulating && (
+          <span className="ml-auto rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-medium text-amber-400">
+            ACTIVE
+          </span>
+        )}
+      </div>
+      {formContent}
     </div>
   )
 }

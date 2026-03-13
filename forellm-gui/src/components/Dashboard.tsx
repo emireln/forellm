@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { SystemData, FitData, ModelFit, CartItem, HardwareOverride } from '../lib/types'
-import { SystemTelemetry } from './SystemTelemetry'
-import { HardwareSimulator } from './HardwareSimulator'
+import { HardwarePanel } from './HardwarePanel'
 import { ModelExplorer } from './ModelExplorer'
 import { MultiModelCart } from './MultiModelCart'
 import { Documentation } from './Documentation'
@@ -75,7 +74,7 @@ export function Dashboard({
   onRefresh
 }: Props) {
   const [isMaximized, setIsMaximized] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [docsOpen, setDocsOpen] = useState(false)
 
   useEffect(() => {
@@ -158,28 +157,28 @@ export function Dashboard({
           {/* Left sidebar — animate width only for smooth collapse/expand */}
           <div
             className="flex shrink-0 flex-col overflow-hidden border-r border-zinc-800/60 bg-zinc-950/95"
-            style={{ width: sidebarCollapsed ? 56 : 280 }}
+            style={{ width: sidebarCollapsed ? 52 : 260 }}
           >
             {sidebarCollapsed ? (
-            <div className="flex flex-1 flex-col items-center py-4">
-              <button
-                type="button"
-                onClick={() => setSidebarCollapsed(false)}
-                className="rounded p-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
-                title="Expand sidebar"
-              >
-                <PanelLeftOpen className="h-5 w-5" />
-              </button>
-            </div>
+            <>
+              <div className="min-h-0 flex-1" />
+              <div className="shrink-0 border-t border-zinc-800/60 px-2 py-2">
+                <button
+                  type="button"
+                  onClick={() => setSidebarCollapsed(false)}
+                  className="flex w-full items-center justify-center rounded-md py-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+                  title="Expand hardware"
+                >
+                  <PanelLeftOpen className="h-4 w-4" />
+                </button>
+              </div>
+            </>
           ) : (
             <>
-              <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-3 py-4 scrollbar-thin">
-                <SystemTelemetry
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-3 py-4 scrollbar-thin">
+                <HardwarePanel
                   system={systemData?.system ?? fitData?.system ?? null}
                   loading={loading}
-                />
-                <HardwareSimulator
-                  system={systemData?.system ?? fitData?.system ?? null}
                   hardwareOverride={hardwareOverride}
                   onSimulate={onSimulate}
                 />
