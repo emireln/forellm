@@ -113,6 +113,14 @@ struct Cli {
     #[arg(long, value_name = "SIZE")]
     memory: Option<String>,
 
+    /// Override system RAM in GB for what-if simulation (e.g. "32G", "64").
+    #[arg(long, value_name = "SIZE")]
+    ram: Option<String>,
+
+    /// Override CPU core count for what-if simulation.
+    #[arg(long, value_name = "N")]
+    cores: Option<usize>,
+
     /// Cap context length used for memory estimation (tokens).
     /// Falls back to OLLAMA_CONTEXT_LENGTH if not set.
     #[arg(long, value_name = "TOKENS", value_parser = clap::value_parser!(u32).range(1..))]
@@ -557,23 +565,35 @@ AGENT USAGE:
     },
 }
 
-/// Detect system specs with optional GPU memory override.
-fn detect_specs(memory_override: &Option<String>) -> SystemSpecs {
-    let specs = SystemSpecs::detect();
-    if let Some(mem_str) = memory_override {
+/// Detect system specs with optional hardware overrides (VRAM, RAM, CPU cores).
+fn detect_specs(cli: &Cli) -> SystemSpecs {
+    let mut specs = SystemSpecs::detect();
+    if let Some(mem_str) = &cli.memory {
         match forellm_core::hardware::parse_memory_size(mem_str) {
-            Some(gb) => specs.with_gpu_memory_override(gb),
+            Some(gb) => specs = specs.with_gpu_memory_override(gb),
             None => {
                 eprintln!(
                     "Warning: could not parse --memory value '{}'. Expected format: 32G, 32000M, 1.5T",
                     mem_str
                 );
-                specs
             }
         }
-    } else {
-        specs
     }
+    if let Some(ram_str) = &cli.ram {
+        match forellm_core::hardware::parse_memory_size(ram_str) {
+            Some(gb) => specs = specs.with_ram_override(gb),
+            None => {
+                eprintln!(
+                    "Warning: could not parse --ram value '{}'. Expected format: 32G, 64",
+                    ram_str
+                );
+            }
+        }
+    }
+    if let Some(cores) = cli.cores {
+        specs = specs.with_cpu_cores_override(cores);
+    }
+    specs
 }
 
 fn resolve_context_limit(max_context: Option<u32>) -> Option<u32> {
@@ -601,10 +621,10 @@ fn run_fit(
     limit: Option<usize>,
     sort: SortColumn,
     json: bool,
-    memory_override: &Option<String>,
+    cli: &Cli,
     context_limit: Option<u32>,
 ) {
-    let specs = detect_specs(memory_override);
+    let specs = detect_specs(cli);
     let db = ModelDatabase::new();
 
     if !json {
@@ -710,7 +730,7 @@ fn run_diff(
     sort: SortColumn,
     limit: usize,
     json: bool,
-    memory_override: &Option<String>,
+    cli: &Cli,
     context_limit: Option<u32>,
 ) {
     if limit < 2 {
@@ -723,7 +743,7 @@ fn run_diff(
         std::process::exit(1);
     }
 
-    let specs = detect_specs(memory_override);
+    let specs = detect_specs(cli);
     let db = ModelDatabase::new();
 
     let mut fits: Vec<ModelFit> = db
@@ -775,7 +795,7 @@ fn run_diff(
     }
 }
 
-fn run_tui(memory_override: &Option<String>, context_limit: Option<u32>) -> std::io::Result<()> {
+fn run_tui(cli: &Cli, context_limit: Option<u32>) -> std::io::Result<()> {
     // Setup terminal
     crossterm::terminal::enable_raw_mode()?;
     let mut stdout = std::io::stdout();
@@ -790,7 +810,7 @@ fn run_tui(memory_override: &Option<String>, context_limit: Option<u32>) -> std:
     draw_boot_screen(&mut terminal, "Detecting system hardware...")?;
 
     // Create app state
-    let specs = detect_specs(memory_override);
+    let specs = detect_specs(cli);
     draw_boot_screen(&mut terminal, "Loading providers and models...")?;
     let mut app = tui_app::App::with_specs_and_context(specs, context_limit);
 
@@ -860,10 +880,10 @@ fn run_recommend(
     runtime_filter: String,
     capability: Option<String>,
     json: bool,
-    memory_override: &Option<String>,
+    cli: &Cli,
     context_limit: Option<u32>,
 ) {
-    let specs = detect_specs(memory_override);
+    let specs = detect_specs(cli);
     let db = ModelDatabase::new();
 
     let mut fits: Vec<ModelFit> = db
@@ -962,7 +982,7 @@ fn run_download(
     quant: Option<&str>,
     budget: Option<f64>,
     list_only: bool,
-    memory_override: &Option<String>,
+    cli: &Cli,
 ) {
     use forellm_core::providers::LlamaCppProvider;
 
@@ -1003,7 +1023,11 @@ fn run_download(
     let files = LlamaCppProvider::list_repo_gguf_files(&repo_id);
     if files.is_empty() {
         eprintln!("No GGUF files found in repository '{}'.", repo_id);
-        eprintln!("Make sure this is a valid GGUF repository on HuggingFace.");
+        eprintln!("This repo may contain PyTorch/safetensors weights instead of GGUF.");
+        eprintln!("ForeLLM only downloads GGUF format (for llama.cpp, Ollama, etc.).");
+        eprintln!();
+        eprintln!("To find GGUF models, run:  forellm hf-search <query>");
+        eprintln!("Example:  forellm hf-search gpt2");
         std::process::exit(1);
     }
 
@@ -1048,7 +1072,7 @@ fn run_download(
         let mem_budget = if let Some(b) = budget {
             b
         } else {
-            let specs = detect_specs(memory_override);
+            let specs = detect_specs(cli);
             specs
                 .total_gpu_vram_gb
                 .or(Some(specs.available_ram_gb))
@@ -1270,10 +1294,10 @@ fn run_plan(
     quant: Option<String>,
     target_tps: Option<f64>,
     json: bool,
-    memory_override: &Option<String>,
+    cli: &Cli,
 ) -> Result<(), String> {
     let db = ModelDatabase::new();
-    let specs = detect_specs(memory_override);
+    let specs = detect_specs(cli);
     let model = resolve_model_selector(db.get_all_models(), model_selector)?;
 
     let request = PlanRequest {
@@ -1298,10 +1322,10 @@ fn main() {
     let context_limit = resolve_context_limit(cli.max_context);
 
     // If a subcommand is given, use classic CLI mode
-    if let Some(command) = cli.command {
+    if let Some(ref command) = cli.command {
         match command {
             Commands::System => {
-                let specs = detect_specs(&cli.memory);
+                let specs = detect_specs(&cli);
                 if cli.json {
                     display::display_json_system(&specs);
                 } else {
@@ -1328,11 +1352,11 @@ fn main() {
                 sort,
             } => {
                 run_fit(
-                    perfect,
-                    limit,
-                    sort.into(),
+                    *perfect,
+                    *limit,
+                    (*sort).into(),
                     cli.json,
-                    &cli.memory,
+                    &cli,
                     context_limit,
                 );
             }
@@ -1345,7 +1369,7 @@ fn main() {
 
             Commands::Info { model } => {
                 let db = ModelDatabase::new();
-                let specs = detect_specs(&cli.memory);
+                let specs = detect_specs(&cli);
                 let results = db.find_model(&model);
 
                 if results.is_empty() {
@@ -1377,13 +1401,13 @@ fn main() {
                 limit,
             } => {
                 run_diff(
-                    model_a,
-                    model_b,
-                    fit,
-                    sort.into(),
-                    limit,
+                    model_a.clone(),
+                    model_b.clone(),
+                    *fit,
+                    (*sort).into(),
+                    *limit,
                     cli.json,
-                    &cli.memory,
+                    &cli,
                     context_limit,
                 );
             }
@@ -1395,7 +1419,7 @@ fn main() {
                 target_tps,
             } => {
                 if let Err(err) =
-                    run_plan(&model, context, quant, target_tps, cli.json, &cli.memory)
+                    run_plan(&model, *context, quant.clone(), *target_tps, cli.json, &cli)
                 {
                     eprintln!("Error: {}", err);
                     std::process::exit(1);
@@ -1411,13 +1435,13 @@ fn main() {
                 json,
             } => {
                 run_recommend(
-                    limit,
-                    use_case,
-                    min_fit,
-                    runtime,
-                    capability,
-                    json,
-                    &cli.memory,
+                    *limit,
+                    use_case.clone(),
+                    min_fit.clone(),
+                    runtime.clone(),
+                    capability.clone(),
+                    *json,
+                    &cli,
                     context_limit,
                 );
             }
@@ -1428,11 +1452,11 @@ fn main() {
                 budget,
                 list,
             } => {
-                run_download(&model, quant.as_deref(), budget, list, &cli.memory);
+                run_download(&model, quant.as_deref(), *budget, *list, &cli);
             }
 
             Commands::HfSearch { query, limit } => {
-                run_hf_search(&query, limit);
+                run_hf_search(&query, *limit);
             }
 
             Commands::Run {
@@ -1442,11 +1466,18 @@ fn main() {
                 ngl,
                 ctx_size,
             } => {
-                run_model(&model, server, port, ngl, ctx_size);
+                run_model(&model, *server, *port, *ngl, *ctx_size);
             }
 
             Commands::Serve { host, port } => {
-                if let Err(err) = serve_api::run_serve(&host, port, &cli.memory, context_limit) {
+                if let Err(err) = serve_api::run_serve(
+                    &host,
+                    *port,
+                    cli.memory.as_ref(),
+                    cli.ram.as_ref(),
+                    cli.cores,
+                    context_limit,
+                ) {
                     eprintln!("Error: {}", err);
                     std::process::exit(1);
                 }
@@ -1462,14 +1493,14 @@ fn main() {
             cli.limit,
             cli.sort.into(),
             cli.json,
-            &cli.memory,
+            &cli,
             context_limit,
         );
         return;
     }
 
     // Default: launch TUI
-    if let Err(e) = run_tui(&cli.memory, context_limit) {
+    if let Err(e) = run_tui(&cli, context_limit) {
         eprintln!("Error running TUI: {}", e);
         std::process::exit(1);
     }

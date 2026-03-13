@@ -94,7 +94,9 @@ type ApiResult<T> = Result<T, ApiError>;
 pub fn run_serve(
     host: &str,
     port: u16,
-    memory_override: &Option<String>,
+    memory_override: Option<&String>,
+    ram_override: Option<&String>,
+    cores_override: Option<usize>,
     context_limit: Option<u32>,
 ) -> Result<(), String> {
     let ip: IpAddr = host
@@ -102,7 +104,7 @@ pub fn run_serve(
         .map_err(|_| format!("invalid --host value: '{host}'"))?;
     let addr = SocketAddr::new(ip, port);
 
-    let specs = detect_specs(memory_override);
+    let specs = detect_specs(memory_override, ram_override, cores_override);
     let db = ModelDatabase::new();
     let all_models = db.get_all_models().clone();
 
@@ -536,15 +538,25 @@ fn round2(v: f64) -> f64 {
     (v * 100.0).round() / 100.0
 }
 
-/// Detect system specs with optional GPU memory override.
-fn detect_specs(memory_override: &Option<String>) -> SystemSpecs {
-    let specs = SystemSpecs::detect();
+/// Detect system specs with optional hardware overrides.
+fn detect_specs(
+    memory_override: Option<&String>,
+    ram_override: Option<&String>,
+    cores_override: Option<usize>,
+) -> SystemSpecs {
+    let mut specs = SystemSpecs::detect();
     if let Some(mem_str) = memory_override {
-        match forellm_core::hardware::parse_memory_size(mem_str) {
-            Some(gb) => specs.with_gpu_memory_override(gb),
-            None => specs,
+        if let Some(gb) = forellm_core::hardware::parse_memory_size(mem_str) {
+            specs = specs.with_gpu_memory_override(gb);
         }
-    } else {
-        specs
     }
+    if let Some(ram_str) = ram_override {
+        if let Some(gb) = forellm_core::hardware::parse_memory_size(ram_str) {
+            specs = specs.with_ram_override(gb);
+        }
+    }
+    if let Some(cores) = cores_override {
+        specs = specs.with_cpu_cores_override(cores);
+    }
+    specs
 }

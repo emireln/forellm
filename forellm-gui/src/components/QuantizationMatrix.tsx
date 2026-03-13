@@ -7,7 +7,7 @@ interface Props {
 }
 
 export function QuantizationMatrix({ model, vramAvailable }: Props) {
-  const paramsB = model.params_b ?? parseFloat(model.parameter_count) || 0
+  const paramsB = model.params_b ?? (parseFloat(model.parameter_count) || 0)
 
   return (
     <div className="space-y-2 rounded border border-zinc-800 bg-zinc-950 p-3">

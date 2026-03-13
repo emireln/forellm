@@ -2,7 +2,9 @@
 """
 Enlarge logo (crop padding), then apply rounded corners.
 Requires: pip install Pillow
-Run from repo root: python scripts/round_logo.py
+Run from repo root:
+  python scripts/round_logo.py                     # uses forellm-original.png or assets/icon.png
+  python scripts/round_logo.py forellm-original.png  # use a specific filename
 """
 import sys
 from pathlib import Path
@@ -15,12 +17,12 @@ except ImportError:
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ASSETS = REPO_ROOT / "assets"
-INPUT_PATH = ASSETS / "icon.png"
-OUTPUT_PATH = ASSETS / "icon.png"
 
-SIZE = 512
-CROP_FACTOR = 0.58  # keep center 58% -> logo appears bigger, less side space
-CORNER_RADIUS = 96  # rounded corners in px
+SIZE = 2048  # main logo size (keeps taskbar/window icon sharp)
+FAVICON_SIZE = 192  # favicon size (crisp when scaled; not oversized)
+# Keep center portion: less aggressive so logo isn't squashed at the sides
+CROP_FACTOR = 0.70  # 70% width & height — balanced size without horizontal squeeze
+CORNER_RADIUS = 384  # rounded corners in px (scaled with SIZE)
 
 
 def add_rounded_corners(im, radius):
@@ -36,7 +38,24 @@ def add_rounded_corners(im, radius):
 
 
 def main():
-    img = Image.open(INPUT_PATH).convert("RGBA")
+    if len(sys.argv) >= 2:
+        name = sys.argv[1]
+        input_path = (REPO_ROOT / name) if (REPO_ROOT / name).exists() else (ASSETS / name)
+    else:
+        # Default: repo root forellm-original.png, then assets/forellm-original.png, then assets/icon.png
+        for candidate in [REPO_ROOT / "forellm-original.png", ASSETS / "forellm-original.png", ASSETS / "icon.png"]:
+            if candidate.exists():
+                input_path = candidate
+                break
+        else:
+            print("Error: no logo found (forellm-original.png or assets/icon.png)", file=sys.stderr)
+            sys.exit(1)
+    if not input_path.exists():
+        print(f"Error: {input_path} not found", file=sys.stderr)
+        sys.exit(1)
+    output_path = input_path
+
+    img = Image.open(input_path).convert("RGBA")
     w, h = img.size
 
     crop_w = int(w * CROP_FACTOR)
@@ -47,8 +66,17 @@ def main():
     cropped = img.crop((left, top, left + crop_w, top + crop_h))
     resized = cropped.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
     rounded = add_rounded_corners(resized, CORNER_RADIUS)
-    rounded.save(OUTPUT_PATH, "PNG")
-    print("Written:", OUTPUT_PATH)
+    rounded.save(output_path, "PNG")
+    print("Written:", output_path)
+
+    # Write a smaller favicon to forellm-gui/public/ for crisp in-app tab icon
+    if output_path.name == "forellm-original.png":
+        public_dir = REPO_ROOT / "forellm-gui" / "public"
+        public_dir.mkdir(parents=True, exist_ok=True)
+        favicon_path = public_dir / "forellm-original.png"
+        favicon = rounded.resize((FAVICON_SIZE, FAVICON_SIZE), Image.Resampling.LANCZOS)
+        favicon.save(favicon_path, "PNG")
+        print("Written (favicon):", favicon_path)
 
 
 if __name__ == "__main__":

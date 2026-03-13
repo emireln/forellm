@@ -1,12 +1,543 @@
-<html>
+<!doctype html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>ForeLLM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ForeLLM | Find What Runs On Your Hardware</title>
+  <meta name="description" content="ForeLLM is a free, open-source tool that helps you find which LLM models run on your hardware.">
+  <style>
+    :root {
+      --bg: #09090b;
+      --bg-elev: #121218;
+      --card: #13131a;
+      --border: #27272a;
+      --text: #f4f4f5;
+      --muted: #a1a1aa;
+      --brand: #10b981;
+      --brand-2: #22d3ee;
+      --accent: #8b5cf6;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      --radius: 16px;
+      --radius-sm: 12px;
+      --content: min(1120px, 92vw);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background:
+        radial-gradient(circle at 10% -5%, rgba(34, 211, 238, 0.14), transparent 28%),
+        radial-gradient(circle at 85% 0%, rgba(16, 185, 129, 0.16), transparent 32%),
+        linear-gradient(#09090b, #0c0c11);
+      color: var(--text);
+      line-height: 1.55;
+      overflow-x: hidden;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    .container { width: var(--content); margin: 0 auto; }
+    .section { padding: 72px 0; }
+    .muted { color: var(--muted); }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid #2e2e38;
+      background: rgba(18, 18, 24, 0.9);
+      color: #d4d4d8;
+      padding: 7px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .nav-wrap {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(10px);
+      background: rgba(9, 9, 11, 0.78);
+      border-bottom: 1px solid rgba(39, 39, 42, 0.7);
+    }
+
+    nav {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+    }
+
+    .brand img {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid #2f2f37;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+      cursor: pointer;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #10b981, #22d3ee);
+      color: #04120d;
+    }
+
+    .btn-primary:hover { filter: brightness(1.04); }
+    .btn-ghost {
+      border-color: #30303a;
+      background: rgba(24, 24, 31, 0.8);
+      color: #e4e4e7;
+    }
+    .btn-ghost:hover { background: #1f1f29; }
+    .btn-coffee {
+      border-color: #50332b;
+      background: linear-gradient(135deg, #ffdd00, #ffb100);
+      color: #302100;
+      font-weight: 700;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.08fr 0.92fr;
+      gap: 28px;
+      align-items: center;
+      min-height: calc(100vh - 72px);
+      padding: 42px 0 64px;
+    }
+
+    .hero h1 {
+      margin: 16px 0 14px;
+      font-size: clamp(2rem, 4.6vw, 3.5rem);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+
+    .hero p {
+      margin: 0 0 22px;
+      max-width: 62ch;
+      color: #bebec8;
+      font-size: clamp(1rem, 1.55vw, 1.13rem);
+    }
+
+    .hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+
+    .hero-card {
+      background: linear-gradient(160deg, rgba(19, 19, 26, 0.95), rgba(16, 16, 21, 0.95));
+      border: 1px solid #2b2b35;
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: var(--shadow);
+      transform: translateY(0);
+      animation: floaty 4.8s ease-in-out infinite;
+    }
+
+    @keyframes floaty {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-7px); }
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .stat {
+      border: 1px solid #2f2f39;
+      border-radius: 12px;
+      padding: 11px 12px;
+      background: rgba(10, 10, 15, 0.7);
+    }
+    .stat b { display: block; font-size: 1.05rem; margin-bottom: 4px; }
+    .stat span { color: #a7a7b3; font-size: 12px; }
+
+    .section h2 {
+      margin: 0 0 8px;
+      font-size: clamp(1.5rem, 2.5vw, 2rem);
+      letter-spacing: -0.01em;
+    }
+    .section .lead {
+      margin: 0 0 24px;
+      color: #b9b9c3;
+      max-width: 70ch;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 18px;
+      transition: transform 0.22s ease, border-color 0.22s ease;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      border-color: #3f3f4a;
+    }
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 1.05rem;
+    }
+    .card p { margin: 0; color: #b0b0ba; }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .feature {
+      border: 1px solid #2a2a34;
+      border-radius: 12px;
+      background: linear-gradient(155deg, rgba(22, 22, 28, 0.9), rgba(13, 13, 18, 0.95));
+      padding: 14px;
+      min-height: 124px;
+    }
+    .feature b { display: block; margin-bottom: 6px; }
+    .feature span { color: #a7a7b3; font-size: 14px; }
+
+    .install-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .install-card {
+      border: 1px solid #2d2d39;
+      background: #101018;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .install-card h3 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+      color: #f2f2f5;
+    }
+    .code-row {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+    }
+    code.command {
+      flex: 1;
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
+      border: 1px solid #2d2d39;
+      border-radius: 8px;
+      background: #09090f;
+      color: #9ef3ce;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .copy-btn {
+      border: 1px solid #343442;
+      border-radius: 8px;
+      background: #1b1b26;
+      color: #e4e4e9;
+      padding: 0 12px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background-color 0.18s ease;
+    }
+    .copy-btn:hover { background: #242433; }
+
+    .cta-panel {
+      border-radius: var(--radius);
+      border: 1px solid #2c2c38;
+      background:
+        radial-gradient(circle at 100% 0%, rgba(16, 185, 129, 0.12), transparent 33%),
+        radial-gradient(circle at 0% 100%, rgba(34, 211, 238, 0.12), transparent 34%),
+        #11111a;
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    footer {
+      border-top: 1px solid #25252f;
+      padding: 22px 0 28px;
+      color: #a9a9b3;
+      font-size: 14px;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .footer-links a:hover { color: #f4f4f5; }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.52s ease, transform 0.52s ease;
+      will-change: opacity, transform;
+    }
+    .reveal.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 980px) {
+      .hero { grid-template-columns: 1fr; min-height: unset; padding-top: 34px; }
+      .features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      nav { height: auto; padding: 12px 0; align-items: flex-start; }
+      .steps { grid-template-columns: 1fr; }
+      .features { grid-template-columns: 1fr; }
+      .install-grid { grid-template-columns: 1fr; }
+      .hero-card { animation: none; }
+    }
+  </style>
 </head>
 <body>
-  <h1>ForeLLM</h1>
-  <p>Match LLM models to your hardware without issues.</p>
-  <p>By Emir Lima.</p>
-  <p><a href="https://github.com/emireln/forellm">GitHub</a></p>
+  <div class="nav-wrap">
+    <div class="container">
+      <nav>
+        <a class="brand" href="https://github.com/emireln/forellm" target="_blank" rel="noopener">
+          <img src="forellm-original.png" alt="ForeLLM logo">
+          <span>ForeLLM</span>
+        </a>
+        <div class="nav-links">
+          <a class="btn btn-ghost" href="#features">Features</a>
+          <a class="btn btn-ghost" href="#install">Install</a>
+          <a class="btn btn-ghost" href="https://github.com/emireln/forellm" target="_blank" rel="noopener">GitHub</a>
+          <a class="btn btn-coffee" href="https://buymeacoffee.com/emireln" target="_blank" rel="noopener">Buy Me a Coffee</a>
+        </div>
+      </nav>
+    </div>
+  </div>
+
+  <header class="container hero">
+    <div class="reveal">
+      <span class="chip">Free • Open Source • MIT</span>
+      <h1>Hundreds of models &amp; providers. Find what runs on your hardware without issues.</h1>
+      <p>
+        ForeLLM detects your system (RAM, CPU, GPU), scores models on quality, speed, fit, and context, and shows what runs well locally. Includes TUI, CLI, REST API, and an optional Electron + React desktop GUI.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="#install">Get Started</a>
+        <a class="btn btn-ghost" href="https://github.com/emireln/forellm/releases" target="_blank" rel="noopener">Download Releases</a>
+        <a class="btn btn-ghost" href="README.md" target="_blank" rel="noopener">Documentation</a>
+      </div>
+    </div>
+
+    <aside class="hero-card reveal" aria-label="ForeLLM highlights">
+      <h3 style="margin:0 0 8px;">Why ForeLLM</h3>
+      <p class="muted" style="margin:0;">Make local LLM choices with hardware-aware confidence instead of trial and error.</p>
+      <div class="stat-grid">
+        <div class="stat">
+          <b>Hardware-Aware</b>
+          <span>RAM, CPU, GPU, VRAM fit checks</span>
+        </div>
+        <div class="stat">
+          <b>Multi-Mode</b>
+          <span>TUI, CLI, REST API, Desktop GUI</span>
+        </div>
+        <div class="stat">
+          <b>Runtime Ready</b>
+          <span>Ollama, llama.cpp, MLX</span>
+        </div>
+        <div class="stat">
+          <b>Advanced Fit Logic</b>
+          <span>Multi-GPU + MoE support</span>
+        </div>
+      </div>
+    </aside>
+  </header>
+
+  <section class="section">
+    <div class="container">
+      <h2 class="reveal">How it works</h2>
+      <p class="lead reveal">ForeLLM gives you practical, hardware-specific model recommendations in three steps.</p>
+      <div class="steps">
+        <article class="card reveal">
+          <h3>1) Detect hardware</h3>
+          <p>Reads your available RAM, CPU cores, GPU backend, and VRAM to understand your real capacity.</p>
+        </article>
+        <article class="card reveal">
+          <h3>2) Score models</h3>
+          <p>Evaluates models across quality, speed, fit, and context so rankings are useful, not generic.</p>
+        </article>
+        <article class="card reveal">
+          <h3>3) Run locally</h3>
+          <p>Use the top picks in your local stack and launch through providers like Ollama, llama.cpp, or MLX.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="features">
+    <div class="container">
+      <h2 class="reveal">Feature highlights</h2>
+      <p class="lead reveal">Everything you need to evaluate and run local models quickly.</p>
+      <div class="features">
+        <article class="feature reveal"><b>TUI</b><span>Interactive terminal workflow for fast model navigation and fit checks.</span></article>
+        <article class="feature reveal"><b>CLI</b><span>Script-friendly commands for system info, fit ranking, and model search.</span></article>
+        <article class="feature reveal"><b>REST API</b><span>Use <code>forellm serve</code> for API-based integrations and automation.</span></article>
+        <article class="feature reveal"><b>Desktop GUI</b><span>Optional Electron + React dashboard with telemetry and what-if simulation.</span></article>
+        <article class="feature reveal"><b>Multi-GPU</b><span>Aggregated GPU memory awareness for modern multi-device setups.</span></article>
+        <article class="feature reveal"><b>MoE aware</b><span>Understands MoE behavior for more realistic memory/run-mode estimation.</span></article>
+        <article class="feature reveal"><b>Provider support</b><span>Works with Ollama, llama.cpp, and MLX runtime ecosystems.</span></article>
+        <article class="feature reveal"><b>Dynamic quantization</b><span>Finds practical model/quant matches based on your hardware profile.</span></article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="install">
+    <div class="container">
+      <h2 class="reveal">Install in seconds</h2>
+      <p class="lead reveal">Pick your platform, copy the command, and start checking what runs on your machine. Scoop and Homebrew require the package to be in their registries; if a command fails, use Quick install or From source.</p>
+      <div class="install-grid">
+        <article class="install-card reveal">
+          <h3>Windows (Scoop)</h3>
+          <div class="code-row">
+            <code class="command" id="cmd-win">scoop install forellm</code>
+            <button class="copy-btn" data-copy="#cmd-win">Copy</button>
+          </div>
+        </article>
+        <article class="install-card reveal">
+          <h3>macOS / Linux (Homebrew)</h3>
+          <div class="code-row">
+            <code class="command" id="cmd-brew">brew install forellm</code>
+            <button class="copy-btn" data-copy="#cmd-brew">Copy</button>
+          </div>
+        </article>
+        <article class="install-card reveal" style="grid-column: 1 / -1;">
+          <h3>Quick install (Linux/macOS)</h3>
+          <div class="code-row">
+            <code class="command" id="cmd-curl">curl -fsSL https://raw.githubusercontent.com/emireln/forellm/main/install.sh | sh</code>
+            <button class="copy-btn" data-copy="#cmd-curl">Copy</button>
+          </div>
+        </article>
+        <article class="install-card reveal" style="grid-column: 1 / -1;">
+          <h3>From source (all platforms)</h3>
+          <div class="code-row">
+            <code class="command" id="cmd-source">git clone https://github.com/emireln/forellm.git &amp;&amp; cd forellm &amp;&amp; cargo build --release</code>
+            <button class="copy-btn" data-copy="#cmd-source">Copy</button>
+          </div>
+          <p class="muted" style="margin:10px 0 0;font-size:12px;">Requires <a href="https://rustup.rs" target="_blank" rel="noopener" style="color:var(--brand);">Rust</a>. Binary: <code style="background:#1a1a24;padding:2px 6px;border-radius:4px;">target/release/forellm</code></p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="cta-panel reveal">
+        <div>
+          <h3 style="margin:0 0 6px;">Build better local AI setups with ForeLLM</h3>
+          <p style="margin:0;color:#b8b8c2;">Start with the CLI, then explore TUI, API, or desktop GUI for your workflow.</p>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <a class="btn btn-primary" href="#install">Install Now</a>
+          <a class="btn btn-ghost" href="https://github.com/emireln/forellm" target="_blank" rel="noopener">GitHub Repo</a>
+          <a class="btn btn-coffee" href="https://buymeacoffee.com/emireln" target="_blank" rel="noopener">Support on Buy Me a Coffee</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <div><strong>ForeLLM</strong> · Free and open source model-fit assistant.</div>
+      <div class="footer-links">
+        <a href="https://github.com/emireln/forellm" target="_blank" rel="noopener">GitHub</a>
+        <a href="README.md" target="_blank" rel="noopener">Documentation</a>
+        <a href="LICENSE" target="_blank" rel="noopener">MIT License</a>
+        <a href="https://buymeacoffee.com/emireln" target="_blank" rel="noopener">Buy Me a Coffee</a>
+      </div>
+      <div style="margin-top:8px;">Author: Emir Lima</div>
+    </div>
+  </footer>
+
+  <script>
+    // Subtle reveal animation on scroll.
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('show');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.14 });
+    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+
+    // Copy command buttons.
+    function fallbackCopy(text) {
+      const input = document.createElement('textarea');
+      input.value = text;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+    }
+
+    document.querySelectorAll('.copy-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const selector = btn.getAttribute('data-copy');
+        const target = selector ? document.querySelector(selector) : null;
+        const text = target ? target.textContent.trim() : '';
+        if (!text) return;
+
+        const original = btn.textContent;
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            fallbackCopy(text);
+          }
+          btn.textContent = 'Copied!';
+        } catch (_) {
+          btn.textContent = 'Failed';
+        } finally {
+          setTimeout(() => { btn.textContent = original; }, 1200);
+        }
+      });
+    });
+  </script>
 </body>
 </html>

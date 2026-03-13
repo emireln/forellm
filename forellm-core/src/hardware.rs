@@ -1410,6 +1410,22 @@ impl SystemSpecs {
         self
     }
 
+    /// Override system RAM (total and available) with a user-specified value (in GB).
+    /// Used for "what-if" hardware simulation.
+    pub fn with_ram_override(mut self, ram_gb: f64) -> Self {
+        let ram_gb = ram_gb.max(0.0);
+        self.total_ram_gb = ram_gb;
+        self.available_ram_gb = ram_gb;
+        self
+    }
+
+    /// Override CPU core count with a user-specified value.
+    /// Used for "what-if" hardware simulation.
+    pub fn with_cpu_cores_override(mut self, cores: usize) -> Self {
+        self.total_cpu_cores = cores.max(1);
+        self
+    }
+
     pub fn display(&self) {
         println!("\n=== System Specifications ===");
         println!("CPU: {} ({} cores)", self.cpu_name, self.total_cpu_cores);

@@ -3,3 +3,5 @@ forellm
 /docs
 forellm-desktop/gen/schemas/*
 data/gguf_sources_cache.json
+forellm-gui/node_modules
+forellm-gui/out

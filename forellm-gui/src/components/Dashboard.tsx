@@ -1,9 +1,27 @@
-import type { SystemData, FitData, ModelFit, CartItem } from '../lib/types'
+import { useEffect, useState } from 'react'
+import type { SystemData, FitData, ModelFit, CartItem, HardwareOverride } from '../lib/types'
 import { SystemTelemetry } from './SystemTelemetry'
 import { HardwareSimulator } from './HardwareSimulator'
 import { ModelExplorer } from './ModelExplorer'
-import { MultiModelCart } from './MultiModelCart'
-import { RefreshCw, Cpu } from 'lucide-react'
+import { Documentation } from './Documentation'
+import { RefreshCw, Minus, Square, X, PanelLeftClose, PanelLeftOpen, BookOpen } from 'lucide-react'
+
+/** Windows-style "restore down" icon: two overlapping outlined squares */
+function RestoreDownIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="square"
+    >
+      <rect x="1" y="5" width="10" height="10" />
+      <rect x="5" y="1" width="10" height="10" />
+    </svg>
+  )
+}
 
 interface Props {
   systemData: SystemData | null
@@ -12,8 +30,8 @@ interface Props {
   loading: boolean
   simulating: boolean
   contextLength: number
-  memoryOverride: string | null
-  onSimulate: (memory: string | null) => void
+  hardwareOverride: HardwareOverride | null
+  onSimulate: (override: HardwareOverride | null) => void
   onContextChange: (ctx: number) => void
   onAddToCart: (model: ModelFit) => void
   onRemoveFromCart: (id: string) => void
@@ -28,7 +46,7 @@ export function Dashboard({
   loading,
   simulating,
   contextLength,
-  memoryOverride,
+  hardwareOverride,
   onSimulate,
   onContextChange,
   onAddToCart,
@@ -36,17 +54,28 @@ export function Dashboard({
   onClearCart,
   onRefresh
 }: Props) {
+  const [isMaximized, setIsMaximized] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [docsOpen, setDocsOpen] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.forellm) {
+      window.forellm.isMaximized().then(setIsMaximized)
+      window.forellm.onWindowMaximizedChange(setIsMaximized)
+    }
+  }, [])
+
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-zinc-950">
+    <div className="flex h-screen w-screen flex-col overflow-hidden rounded-xl bg-zinc-950">
+      {docsOpen && <Documentation onClose={() => setDocsOpen(false)} />}
       {/* Title bar */}
-      <header className="flex h-10 shrink-0 items-center justify-between border-b border-zinc-800 bg-zinc-900/80 px-4 [-webkit-app-region:drag]">
+      <header className="flex h-10 shrink-0 items-center justify-between rounded-t-xl border-b border-zinc-800 bg-zinc-900/80 px-4 [-webkit-app-region:drag]">
         <div className="flex items-center gap-2 [-webkit-app-region:no-drag]">
-          <Cpu className="h-4 w-4 text-emerald-400" />
           <span className="text-sm font-semibold tracking-wide text-zinc-200">
             ForeLLM
           </span>
           <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[10px] text-emerald-400">
-            v0.1
+            v0.1.2026
           </span>
           {simulating && (
             <span className="ml-2 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
@@ -54,65 +83,113 @@ export function Dashboard({
             </span>
           )}
         </div>
-        <button
-          onClick={onRefresh}
-          disabled={loading}
-          className="flex items-center gap-1.5 rounded px-2 py-1 text-xs text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-40 [-webkit-app-region:no-drag]"
-        >
-          <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
+        <div className="flex items-center gap-0.5 [-webkit-app-region:no-drag]">
+          <button
+            onClick={onRefresh}
+            disabled={loading}
+            className="flex items-center gap-1.5 rounded px-2 py-1 text-xs text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-40"
+          >
+            <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Loading…' : 'Refresh'}
+          </button>
+          <button
+            onClick={() => setDocsOpen(true)}
+            className="flex items-center gap-1.5 rounded px-2 py-1 text-xs text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+            title="Documentation"
+          >
+            <BookOpen className="h-3 w-3" />
+            Docs
+          </button>
+          {typeof window !== 'undefined' && window.forellm && (
+            <>
+              <button
+                onClick={() => window.forellm.minimize()}
+                className="rounded p-1.5 text-zinc-400 transition hover:bg-zinc-700 hover:text-zinc-200"
+                title="Minimize"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => window.forellm.maximize()}
+                className="rounded p-1.5 text-zinc-400 transition hover:bg-zinc-700 hover:text-zinc-200"
+                title={isMaximized ? 'Restore down' : 'Maximize'}
+              >
+                {isMaximized ? (
+                  <RestoreDownIcon className="h-4 w-4" />
+                ) : (
+                  <Square className="h-4 w-4" />
+                )}
+              </button>
+              <button
+                onClick={() => window.forellm.close()}
+                className="rounded p-1.5 text-zinc-400 transition hover:bg-red-500/20 hover:text-red-400"
+                title="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </>
+          )}
+        </div>
       </header>
 
-      {/* Main grid */}
-      <div className="grid min-h-0 flex-1 grid-cols-[280px_1fr] grid-rows-[1fr_auto] gap-px bg-zinc-800/50">
-        {/* Left sidebar */}
-        <div className="flex flex-col gap-px overflow-y-auto bg-zinc-950">
-          <SystemTelemetry
-            system={systemData?.system ?? fitData?.system ?? null}
-            loading={loading}
-          />
-          <HardwareSimulator
-            currentVram={
-              systemData?.system?.gpu_vram_gb ??
-              fitData?.system?.gpu_vram_gb ??
-              0
-            }
-            simulating={simulating}
-            memoryOverride={memoryOverride}
-            onSimulate={onSimulate}
-          />
-        </div>
+      {/* Main layout: flex so sidebar width can transition smoothly (no grid) */}
+      <div className="flex min-h-0 flex-1 flex-col gap-px bg-zinc-800/50">
+        <div className="flex min-h-0 flex-1">
+          {/* Left sidebar — animate width only for smooth collapse/expand */}
+          <div
+            className="flex shrink-0 flex-col overflow-hidden border-r border-zinc-800/60 bg-zinc-950/95"
+            style={{ width: sidebarCollapsed ? 56 : 280 }}
+          >
+            {sidebarCollapsed ? (
+            <div className="flex flex-1 flex-col items-center py-4">
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(false)}
+                className="rounded p-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+                title="Expand sidebar"
+              >
+                <PanelLeftOpen className="h-5 w-5" />
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-3 py-4 scrollbar-thin">
+                <SystemTelemetry
+                  system={systemData?.system ?? fitData?.system ?? null}
+                  loading={loading}
+                />
+                <HardwareSimulator
+                  system={systemData?.system ?? fitData?.system ?? null}
+                  hardwareOverride={hardwareOverride}
+                  onSimulate={onSimulate}
+                />
+              </div>
+              <div className="shrink-0 border-t border-zinc-800/60 px-2 py-2">
+                <button
+                  type="button"
+                  onClick={() => setSidebarCollapsed(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-md py-2 text-xs text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+                  title="Collapse sidebar"
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                  <span>Collapse</span>
+                </button>
+              </div>
+            </>
+            )}
+          </div>
 
-        {/* Main content: Model Explorer */}
-        <div className="overflow-hidden bg-zinc-950">
-          <ModelExplorer
-            models={fitData?.models ?? []}
-            loading={loading}
-            contextLength={contextLength}
-            onContextChange={onContextChange}
-            onAddToCart={onAddToCart}
-            cartItems={cartItems}
-          />
-        </div>
-
-        {/* Bottom cart — spans both columns */}
-        <div className="col-span-2 bg-zinc-950">
-          <MultiModelCart
-            items={cartItems}
-            vramAvailable={
-              systemData?.system?.gpu_vram_gb ??
-              fitData?.system?.gpu_vram_gb ??
-              0
-            }
-            ramAvailable={
-              systemData?.system?.total_ram_gb ??
-              fitData?.system?.total_ram_gb ??
-              0
-            }
-            onRemove={onRemoveFromCart}
-            onClear={onClearCart}
-          />
+          {/* Main content: Model Explorer */}
+          <div className="min-w-0 flex-1 overflow-hidden bg-zinc-950">
+            <ModelExplorer
+              models={fitData?.models ?? []}
+              loading={loading}
+              contextLength={contextLength}
+              onContextChange={onContextChange}
+              onAddToCart={onAddToCart}
+              cartItems={cartItems}
+            />
+          </div>
         </div>
       </div>
     </div>

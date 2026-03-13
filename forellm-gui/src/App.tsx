@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Dashboard } from './components/Dashboard'
-import type { SystemData, FitData, ModelFit, CartItem } from './lib/types'
+import type { SystemData, FitData, ModelFit, CartItem, HardwareOverride } from './lib/types'
 import { AlertTriangle, RefreshCw, Terminal } from 'lucide-react'
 
 export default function App() {
@@ -9,12 +9,12 @@ export default function App() {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [memoryOverride, setMemoryOverride] = useState<string | null>(null)
+  const [hardwareOverride, setHardwareOverride] = useState<HardwareOverride | null>(null)
   const [contextLength, setContextLength] = useState(4096)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
 
   const fetchData = useCallback(
-    async (memory?: string | null, maxContext?: number) => {
+    async (override?: HardwareOverride | null, maxContext?: number) => {
       try {
         setLoading(true)
         setError(null)
@@ -22,7 +22,9 @@ export default function App() {
         const [sys, fit] = await Promise.all([
           window.forellm.getSystem() as Promise<SystemData>,
           window.forellm.getFit({
-            memory: memory || undefined,
+            memory: override?.memory,
+            ram: override?.ram,
+            cores: override?.cores,
             maxContext: maxContext || undefined
           }) as Promise<FitData>
         ])
@@ -43,9 +45,9 @@ export default function App() {
   }, [fetchData])
 
   const handleSimulate = useCallback(
-    (memory: string | null) => {
-      setMemoryOverride(memory)
-      fetchData(memory, contextLength)
+    (override: HardwareOverride | null) => {
+      setHardwareOverride(override)
+      fetchData(override, contextLength)
     },
     [fetchData, contextLength]
   )
@@ -55,10 +57,10 @@ export default function App() {
       setContextLength(ctx)
       if (debounceRef.current) clearTimeout(debounceRef.current)
       debounceRef.current = setTimeout(() => {
-        fetchData(memoryOverride, ctx)
+        fetchData(hardwareOverride, ctx)
       }, 400)
     },
-    [fetchData, memoryOverride]
+    [fetchData, hardwareOverride]
   )
 
   const addToCart = useCallback((model: ModelFit) => {
@@ -73,6 +75,11 @@ export default function App() {
   }, [])
 
   const clearCart = useCallback(() => setCartItems([]), [])
+
+  const onRefresh = useCallback(
+    () => fetchData(hardwareOverride, contextLength),
+    [fetchData, hardwareOverride, contextLength]
+  )
 
   if (error) {
     return (
@@ -110,15 +117,15 @@ export default function App() {
       fitData={fitData}
       cartItems={cartItems}
       loading={loading}
-      simulating={memoryOverride !== null}
+      simulating={hardwareOverride != null}
       contextLength={contextLength}
-      memoryOverride={memoryOverride}
+      hardwareOverride={hardwareOverride}
       onSimulate={handleSimulate}
       onContextChange={handleContextChange}
       onAddToCart={addToCart}
       onRemoveFromCart={removeFromCart}
       onClearCart={clearCart}
-      onRefresh={() => fetchData(memoryOverride, contextLength)}
+      onRefresh={onRefresh}
     />
   )
 }

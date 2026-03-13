@@ -1,7 +1,7 @@
 # ForeLLM
 
 <p align="center">
-  <img src="assets/icon.png" alt="ForeLLM icon" width="128" height="128">
+  <img src="assets/forellm-original.png" alt="ForeLLM icon" width="128" height="128">
 </p>
 <p align="center">
   <a href="https://github.com/emireln/forellm"><img src="https://img.shields.io/badge/github-emireln%2Fforellm-blue?logo=github" alt="GitHub"></a>
@@ -254,7 +254,13 @@ npm run dev
 - **Multi-model cart** — Add several models (LLM + embedding + etc.) and see cumulative VRAM/RAM usage
 - **Run via Ollama** — Copy the exact `ollama run <tag>` or `forellm download` command for each model
 
-The GUI is in `forellm-gui/` (Electron + React + Tailwind). Set `FORELLM_PATH` to the binary if it is not in `../target/release/forellm`.
+The GUI is in `forellm-gui/` (Electron + React + Tailwind). Set `FORELLM_PATH` to the binary if it is not in `../target/release/forellm`. The app uses `assets/forellm-original.png` for the window icon (and README). No in-app favicon.
+
+**Full app documentation:** [forellm-gui/docs/APP.md](forellm-gui/docs/APP.md) — title bar, sidebar (System Telemetry, What-If Simulator, collapse), Model Explorer (search, context, paste-and-download, table, cart), Multi-Model Cart, download behavior, and environment.
+
+### Landing page
+
+The repo includes a single-page marketing landing at **`index.html`** (repo root): dark theme, hero, how-it-works, feature highlights, copyable install commands (Scoop, Homebrew, Quick install, From source), and links to GitHub and [Buy Me a Coffee](https://buymeacoffee.com/emireln). Open `index.html` in a browser or host it as the project website. The logo uses `forellm-original.png` in the same directory.
 
 ### JSON output
 

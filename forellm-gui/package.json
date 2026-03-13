@@ -4,7 +4,7 @@
   "description": "ForeLLM — Visual LLM Hardware Fitting Dashboard",
   "author": "Emir Lima",
   "license": "MIT",
-  "main": "out/main/index.js",
+  "main": "out/main/main.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -12,23 +12,24 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.510.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "lucide-react": "^0.510.0",
-    "clsx": "^2.1.1",
     "tailwind-merge": "^3.3.0"
   },
   "devDependencies": {
-    "electron": "^35.0.0",
-    "electron-vite": "^3.1.0",
     "@electron-toolkit/utils": "^4.0.0",
-    "@vitejs/plugin-react": "^4.5.2",
-    "typescript": "^5.8.3",
+    "@types/node": "^22.15.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
-    "@types/node": "^22.15.0",
-    "tailwindcss": "^3.4.17",
+    "@vitejs/plugin-react": "^4.5.2",
+    "autoprefixer": "^10.4.21",
+    "electron": "^35.0.0",
+    "electron-vite": "^3.1.0",
     "postcss": "^8.5.3",
-    "autoprefixer": "^10.4.21"
+    "sharp": "^0.34.5",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3"
   }
 }
