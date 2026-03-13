@@ -230,13 +230,12 @@ function registerIpc(): void {
 function createWindow(): void {
   const guiRoot = path.resolve(__dirname, '..', '..')
   const repoRoot = path.join(guiRoot, '..')
-  const repoRootLogo = path.join(repoRoot, 'forellm-original.png')
-  const repoAssetsLogo = path.join(repoRoot, 'assets', 'forellm-original.png')
-  const publicIcon = path.join(guiRoot, 'public', 'icon.png')
+  const publicLogo = path.join(guiRoot, 'public', 'forellm.png')
+  const repoAssetsLogo = path.join(repoRoot, 'assets', 'forellm.png')
   const iconPath =
-    existsSync(repoRootLogo) ? repoRootLogo
+    existsSync(publicLogo) ? publicLogo
     : existsSync(repoAssetsLogo) ? repoAssetsLogo
-    : publicIcon
+    : publicLogo
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
