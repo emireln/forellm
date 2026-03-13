@@ -2,6 +2,17 @@
 
 ForeLLM by Emir Lima. Historical release notes below.
 
+## [Unreleased]
+
+### Features
+
+* **569 models in database** — Shipped model database expanded to 569 models (from 425). GUI and docs updated to reflect count.
+* **`fit --all`** — New `--all` flag for `forellm fit` includes backend-incompatible models (e.g. MLX on non-Apple). GUI uses this so Model Explorer shows all 569 models.
+
+### Documentation
+
+* README, AGENTS.md, website, and GUI docs updated with 569+ model count and `fit --json --all` example.
+
 ## [0.3.7] (2026-02-21)
 
 

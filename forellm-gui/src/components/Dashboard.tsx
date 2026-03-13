@@ -3,8 +3,28 @@ import type { SystemData, FitData, ModelFit, CartItem, HardwareOverride } from '
 import { SystemTelemetry } from './SystemTelemetry'
 import { HardwareSimulator } from './HardwareSimulator'
 import { ModelExplorer } from './ModelExplorer'
+import { MultiModelCart } from './MultiModelCart'
 import { Documentation } from './Documentation'
 import { RefreshCw, Minus, Square, X, PanelLeftClose, PanelLeftOpen, BookOpen } from 'lucide-react'
+import type { SystemInfo } from '../lib/types'
+
+/** Effective hardware for cart/simulator: from override or detected system. */
+function getEffectiveHardware(
+  system: SystemInfo | null,
+  hardwareOverride: HardwareOverride | null
+): { vramGb: number; ramGb: number; cores: number } {
+  const vram = system?.gpu_vram_gb ?? 0
+  const ram = system?.total_ram_gb ?? 0
+  const cores = system?.cpu_cores ?? 0
+  const vramGb = hardwareOverride?.memory != null
+    ? (parseFloat(hardwareOverride.memory.replace(/G$/i, '')) || vram)
+    : vram
+  const ramGb = hardwareOverride?.ram != null
+    ? (parseFloat(hardwareOverride.ram.replace(/G$/i, '')) || ram)
+    : ram
+  const coresEffective = hardwareOverride?.cores ?? cores
+  return { vramGb, ramGb, cores: coresEffective }
+}
 
 /** Windows-style "restore down" icon: two overlapping outlined squares */
 function RestoreDownIcon({ className }: { className?: string }) {
@@ -191,6 +211,21 @@ export function Dashboard({
             />
           </div>
         </div>
+
+        {/* Multi-Model Cart — only visible when there are items */}
+        {cartItems.length > 0 && (
+          <div className="shrink-0 bg-zinc-950">
+            <MultiModelCart
+              items={cartItems}
+              vramAvailable={getEffectiveHardware(systemData?.system ?? fitData?.system ?? null, hardwareOverride).vramGb}
+              ramAvailable={getEffectiveHardware(systemData?.system ?? fitData?.system ?? null, hardwareOverride).ramGb}
+              coresAvailable={getEffectiveHardware(systemData?.system ?? fitData?.system ?? null, hardwareOverride).cores}
+              isSimulated={simulating}
+              onRemove={onRemoveFromCart}
+              onClear={onClearCart}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

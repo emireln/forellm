@@ -96,6 +96,10 @@ struct Cli {
     #[arg(short = 'n', long)]
     limit: Option<usize>,
 
+    /// Include models incompatible with current backend (e.g. MLX on non-Apple)
+    #[arg(long)]
+    all: bool,
+
     /// Sort column for CLI fit output
     #[arg(long, value_enum, default_value_t = SortArg::Score)]
     sort: SortArg,
@@ -212,6 +216,10 @@ AGENT USAGE:
         /// Limit number of results
         #[arg(short = 'n', long)]
         limit: Option<usize>,
+
+        /// Include models incompatible with current backend (e.g. MLX on non-Apple)
+        #[arg(long)]
+        all: bool,
 
         /// Sort column for fit output
         #[arg(long, value_enum, default_value_t = SortArg::Score)]
@@ -619,6 +627,7 @@ fn resolve_context_limit(max_context: Option<u32>) -> Option<u32> {
 fn run_fit(
     perfect: bool,
     limit: Option<usize>,
+    all: bool,
     sort: SortColumn,
     json: bool,
     cli: &Cli,
@@ -631,16 +640,19 @@ fn run_fit(
         specs.display();
     }
 
-    let hidden: usize = db
-        .get_all_models()
-        .iter()
-        .filter(|m| !backend_compatible(m, &specs))
-        .count();
+    let hidden: usize = if all {
+        0
+    } else {
+        db.get_all_models()
+            .iter()
+            .filter(|m| !backend_compatible(m, &specs))
+            .count()
+    };
 
     let mut fits: Vec<ModelFit> = db
         .get_all_models()
         .iter()
-        .filter(|m| backend_compatible(m, &specs))
+        .filter(|m| all || backend_compatible(m, &specs))
         .map(|m| ModelFit::analyze_with_context_limit(m, &specs, context_limit))
         .collect();
 
@@ -1349,11 +1361,13 @@ fn main() {
             Commands::Fit {
                 perfect,
                 limit,
+                all,
                 sort,
             } => {
                 run_fit(
                     *perfect,
                     *limit,
+                    *all,
                     (*sort).into(),
                     cli.json,
                     &cli,
@@ -1491,6 +1505,7 @@ fn main() {
         run_fit(
             cli.perfect,
             cli.limit,
+            cli.all,
             cli.sort.into(),
             cli.json,
             &cli,

@@ -158,7 +158,7 @@ function registerIpc(): void {
       if (opts?.ram) args.push('--ram', opts.ram)
       if (opts?.cores != null && opts.cores > 0) args.push('--cores', String(opts.cores))
       if (opts?.maxContext) args.push('--max-context', String(opts.maxContext))
-      args.push('fit', '--json')
+      args.push('fit', '--json', '--all')
       if (opts?.limit) args.push('-n', String(opts.limit))
       if (opts?.sort) args.push('--sort', opts.sort)
       return execForellm(args)
