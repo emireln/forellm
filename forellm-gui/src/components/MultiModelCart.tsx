@@ -25,12 +25,8 @@ export function MultiModelCart({
 
   if (items.length === 0) {
     return (
-      <div className="flex items-center gap-2 border-t border-zinc-800 px-4 py-2 text-xs text-zinc-600">
-        <ShoppingCart className="h-3.5 w-3.5" />
-        <span>
-          Multi-Model Cart — Add models from the table above to check
-          cumulative memory usage
-        </span>
+      <div className="flex items-center gap-3 border-t border-zinc-800/80 bg-zinc-900/40 px-4 py-3">
+        <ShoppingCart className="h-4 w-4 shrink-0 text-zinc-600" />
       </div>
     )
   }

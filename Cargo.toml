@@ -1,6 +1,6 @@
 [workspace]
 members = ["forellm-core", "forellm-tui", "forellm-desktop"]
-default-members = ["forellm-core", "forellm"]
+default-members = ["forellm-core", "forellm-tui"]
 resolver = "3"
 
 [workspace.package]

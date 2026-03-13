@@ -1,3 +1,4 @@
+import { useEffect, useState, useRef, memo } from 'react'
 import { cn } from '../lib/types'
 
 interface Props {
@@ -23,47 +24,86 @@ function pickColor(ratio: number): 'green' | 'cyan' | 'amber' | 'red' {
   return 'red'
 }
 
-export function GaugeChart({ value, max, label, unit = 'GB', color, size = 80 }: Props) {
+function GaugeChartInner({ value, max, label, unit = 'GB', color, size = 80 }: Props) {
   const ratio = max > 0 ? Math.min(value / max, 1) : 0
   const c = COLORS[color ?? pickColor(ratio)]
   const r = (size - 8) / 2
   const circumference = 2 * Math.PI * r
   const arc = circumference * 0.75
-  const offset = arc - arc * ratio
+  const clampedRatio = ratio >= 1 ? 0.999 : ratio
+  const targetOffset = arc - arc * clampedRatio
+
+  const [offset, setOffset] = useState(arc)
+  const lastTargetRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (lastTargetRef.current === targetOffset) return
+    lastTargetRef.current = targetOffset
+    const t = requestAnimationFrame(() => setOffset(targetOffset))
+    return () => cancelAnimationFrame(t)
+  }, [targetOffset])
+
+  const cx = size / 2
+  const strokeHalf = 2
+  const clipR = r + strokeHalf
+  const clipId = `gauge-clip-${size}-${(color ?? 'auto')}-${label.replace(/\s+/g, '-')}`
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-[135deg]">
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={r}
-            fill="none"
-            stroke="#27272a"
-            strokeWidth={4}
-            strokeDasharray={`${arc} ${circumference}`}
-            strokeLinecap="round"
-          />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={r}
-            fill="none"
-            stroke={c.stroke}
-            strokeWidth={4}
-            strokeDasharray={`${arc} ${circumference}`}
+    <div className="flex flex-1 flex-col items-center gap-2">
+      <div
+        className="relative flex items-center justify-center overflow-hidden rounded-full"
+        style={{ width: size, height: size, minWidth: size, minHeight: size }}
+      >
+        <svg
+          width={size}
+          height={size}
+          className="absolute -rotate-[135deg]"
+          aria-hidden
+          style={{ overflow: 'hidden', display: 'block' }}
+        >
+          <defs>
+            <clipPath id={clipId}>
+              <circle cx={cx} cy={cx} r={clipR} />
+            </clipPath>
+          </defs>
+          <g clipPath={`url(#${clipId})`}>
+            <circle
+              cx={cx}
+              cy={cx}
+              r={r}
+              fill="none"
+              stroke="#27272a"
+              strokeWidth={4}
+              strokeDasharray={`${arc} ${circumference}`}
+              strokeLinecap="butt"
+            />
+            <circle
+              cx={cx}
+              cy={cx}
+              r={r}
+              fill="none"
+              stroke={c.stroke}
+              strokeWidth={4}
+              strokeDasharray={`${arc} ${circumference}`}
             strokeDashoffset={offset}
-            strokeLinecap="round"
-            className="transition-all duration-700 ease-out"
-            style={{ filter: `drop-shadow(0 0 4px ${c.stroke}40)` }}
+            strokeLinecap="butt"
+            style={{ transition: 'stroke-dashoffset 0.4s ease-out' }}
           />
+          </g>
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className={cn('mono text-sm font-semibold', c.text)}>
-            {value.toFixed(1)}
-          </span>
-          <span className="text-[9px] text-zinc-500">{unit}</span>
+        <div
+          className="pointer-events-none absolute inset-0 grid place-items-center text-center"
+          style={{ padding: 4 }}
+          aria-hidden
+        >
+          <div className="grid grid-cols-1 gap-0">
+            <span className={cn('mono text-sm font-semibold leading-tight', c.text)}>
+              {value.toFixed(1)}
+            </span>
+            <span className="text-[9px] leading-tight text-zinc-500">
+              {unit || '\u00A0'}
+            </span>
+          </div>
         </div>
       </div>
       <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
@@ -72,3 +112,5 @@ export function GaugeChart({ value, max, label, unit = 'GB', color, size = 80 }:
     </div>
   )
 }
+
+export const GaugeChart = memo(GaugeChartInner)

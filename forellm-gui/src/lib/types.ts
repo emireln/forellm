@@ -57,6 +57,13 @@ export interface CartItem {
   id: string
 }
 
+/** What-if simulator overrides (VRAM, RAM, CPU cores). Omitted fields use detected values. */
+export interface HardwareOverride {
+  memory?: string
+  ram?: string
+  cores?: number
+}
+
 export interface GpuPreset {
   name: string
   vram: number

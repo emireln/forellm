@@ -21,14 +21,48 @@
   *::-webkit-scrollbar-thumb:hover {
     background: #52525b;
   }
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 }
 
 @layer components {
   .panel {
-    @apply rounded-lg border border-zinc-800 bg-zinc-900/60 backdrop-blur-sm;
+    @apply rounded-xl border border-zinc-800/80 bg-zinc-900/80 shadow-lg shadow-black/20;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .panel:hover {
+    @apply border-zinc-700/80;
   }
   .panel-header {
-    @apply flex items-center gap-2 border-b border-zinc-800 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-zinc-400;
+    @apply flex items-center gap-2 border-b border-zinc-800/80 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-400;
+  }
+  @keyframes sidebar-in {
+    from {
+      opacity: 0;
+      transform: translateX(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  .animate-sidebar-in {
+    animation: sidebar-in 0.2s ease-out forwards;
+  }
+  .animate-sidebar-in-delay-1 { animation: sidebar-in 0.2s ease-out 0.05s forwards; opacity: 0; }
+  .animate-sidebar-in-delay-2 { animation: sidebar-in 0.2s ease-out 0.1s forwards; opacity: 0; }
+  @keyframes dropdown-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-dropdown-in {
+    animation: dropdown-in 0.2s ease-out forwards;
   }
   .mono {
     @apply font-mono tabular-nums;
