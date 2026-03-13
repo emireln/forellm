@@ -40,6 +40,12 @@ curl -fsSL https://raw.githubusercontent.com/emireln/forellm/main/install.sh | s
 ```
 Installs the latest release to `/usr/local/bin` (or `~/.local/bin` with `sh -s -- --local`).
 
+#### Docker
+```sh
+docker build -t forellm . && docker run --rm -it forellm
+```
+Builds the image and runs the TUI in one go. CLI examples: `docker run --rm forellm fit --json -n 5`, `docker run --rm forellm system --json`. If the image is published to GitHub Container Registry: `docker run --rm -it ghcr.io/emireln/forellm`.
+
 #### From source
 ```sh
 git clone https://github.com/emireln/forellm.git
