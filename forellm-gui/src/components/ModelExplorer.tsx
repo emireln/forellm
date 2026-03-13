@@ -407,7 +407,12 @@ function ModelRow({
               </button>
             )}
             <button
-              onClick={(e) => { e.stopPropagation(); onAddToCart() }}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onAddToCart()
+              }}
               disabled={inCart || m.fit_level === 'TooTight'}
               title={inCart ? 'Already in cart' : 'Add to cart'}
               className={cn(

@@ -79,7 +79,7 @@ Main content area: sortable table of models and the “paste & download” bar.
 
 ### Toolbar (top)
 
-- **Model Explorer** label and model count (e.g. `33/33`).
+- **Model Explorer** label and model count (e.g. `569/569`).
 - **Search** — Text filter on model name, provider, use case, parameter count.
 - **Context** — Slider for context length (2k–128k). Affects memory estimation and scores; fit data is re-fetched with the selected context cap.
 - **Loading** — Spinner when data is loading.

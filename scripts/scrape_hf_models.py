@@ -5,9 +5,10 @@ Fetches model metadata and computes RAM/VRAM requirements from parameter counts.
 Outputs a JSON file consumable by ForeLLM's models.rs.
 
 Usage:
-  python3 scrape_hf_models.py                  # Curated list only
-  python3 scrape_hf_models.py --discover        # Curated + top trending models
-  python3 scrape_hf_models.py --discover -n 50  # Curated + top 50 trending
+  python3 scrape_hf_models.py                    # Curated list only
+  python3 scrape_hf_models.py --discover         # Curated + top 30 trending
+  python3 scrape_hf_models.py --discover -n 500  # Curated + up to 500 trending (add ~500 models quickly)
+  python3 scrape_hf_models.py --discover -n 500 --min-downloads 5000  # Lower bar for more results
 """
 
 import argparse
@@ -817,15 +818,17 @@ SKIP_ORGS = {
 def discover_trending_models(limit: int = 30, min_downloads: int = 10000) -> list[str]:
     """Query HuggingFace API for top text-generation models by download count.
 
-    Returns a list of repo IDs (e.g. ["mistralai/Mistral-7B-v0.1", ...])
-    that are NOT already in TARGET_MODELS.
+    Fetches up to 1000 models per pipeline tag (HF API limit); filtering yields
+    fewer. Returns repo IDs not already in TARGET_MODELS.
     """
     curated = set(TARGET_MODELS)
     discovered = []
+    # Request a large batch per pipeline (API often allows ~1000); we filter heavily
+    fetch_limit = min(limit * 4, 1000)
 
     for pipeline in DISCOVER_PIPELINES:
-        # Fetch more than we need since we'll filter heavily
-        fetch_limit = limit * 5
+        if len(discovered) >= limit:
+            break
         url = (
             f"{HF_API}?"
             f"pipeline_tag={pipeline}&"
@@ -835,7 +838,7 @@ def discover_trending_models(limit: int = 30, min_downloads: int = 10000) -> lis
         )
         req = urllib.request.Request(url, headers=_auth_headers())
         try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with urllib.request.urlopen(req, timeout=60) as resp:
                 models = json.loads(resp.read().decode())
         except Exception as e:
             print(f"  ⚠ Failed to fetch trending {pipeline} models: {e}",
@@ -846,41 +849,22 @@ def discover_trending_models(limit: int = 30, min_downloads: int = 10000) -> lis
             repo_id = m.get("id", "")
             if not repo_id or "/" not in repo_id:
                 continue
-
-            # Skip if already curated
-            if repo_id in curated:
+            if repo_id in curated or repo_id in discovered:
                 continue
-
-            # Skip already discovered
-            if repo_id in discovered:
-                continue
-
-            # Skip known repack / converter orgs
             org = repo_id.split("/")[0]
             if org in SKIP_ORGS:
                 continue
-
-            # Skip models with too few downloads
             downloads = m.get("downloads", 0)
             if downloads < min_downloads:
                 continue
-
-            # Skip GGUF-only repos, adapters, and merges
             tags = set(m.get("tags", []))
             if tags & {"gguf", "adapter", "merge", "lora", "qlora"}:
                 continue
-
-            # Must have safetensors tag (listing API doesn't include param counts,
-            # but the safetensors tag means scrape_model() will find params)
             if "safetensors" not in tags:
                 continue
-
             discovered.append(repo_id)
             if len(discovered) >= limit:
                 break
-
-        if len(discovered) >= limit:
-            break
 
     return discovered[:limit]
 
@@ -897,7 +881,7 @@ def main():
     parser.add_argument(
         "-n", "--discover-limit", type=int, default=30,
         help="Max number of trending models to discover (default: 30). "
-             "Duplicates of curated models are skipped automatically."
+             "Use e.g. -n 500 to add ~500 more models quickly. Duplicates are skipped."
     )
     parser.add_argument(
         "--min-downloads", type=int, default=10000,
@@ -929,7 +913,7 @@ def main():
     if _hf_token:
         print(f"🔑 Authenticated with HuggingFace token ({_hf_token[:4]}...{_hf_token[-4:]})")
     else:
-        print("ℹ  No HF token set. Gated models will use fallback data.")
+        print("Note: No HF token set. Gated models will use fallback data.")
         print("   Set HF_TOKEN env var or pass --token to access gated models.\n")
 
     # Fallback entries for gated/auth-required models where the API

@@ -130,9 +130,13 @@ npm run dev`}
               <li><strong className="text-zinc-300">Columns:</strong> Expand, Model, Provider, Params, Quant, Mem Req, Score, Tok/s, Fit, Use Case, Actions.</li>
               <li><strong className="text-zinc-300">Sort</strong> — Click headers (Params, Mem Req, Score, Tok/s); click again to toggle order.</li>
               <li><strong className="text-zinc-300">Expand row</strong> — Chevron shows quantization matrix and copy-run-command button.</li>
+              <li><strong className="text-zinc-300">Add to cart</strong> — Cart icon adds the model to the Multi-Model Cart to check combined memory vs effective hardware (VRAM, RAM, cores). Uses the same effective hardware as the What-If Simulator when active.</li>
               <li><strong className="text-zinc-300">Copy command</strong> — Copies <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">ollama run &lt;tag&gt;</code> or <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">forellm download "&lt;model&gt;"</code>.</li>
             </ul>
             <p className="mt-2 text-zinc-500">Fit badges (Perfect, Good, Marginal, TooTight) show how well the model fits current or simulated hardware.</p>
+
+            <h3 className="mb-1.5 mt-3 font-medium text-zinc-200">Multi-Model Cart</h3>
+            <p className="mb-2 text-zinc-400">Bottom bar: add models from the table to see total memory required vs <strong className="text-zinc-300">effective hardware</strong> (VRAM, RAM, CPU cores). When the What-If Simulator is active, the cart uses the same simulated values. Status: fits in VRAM, fits in RAM (CPU offload), or exceeds memory.</p>
           </section>
 
           <section className="mb-6">
@@ -171,6 +175,7 @@ npm run dev`}
                   <tr><td className="px-3 py-2 font-medium text-zinc-200">Sidebar collapse</td><td className="px-3 py-2">Collapse to icon strip; expand to full sidebar. Instant.</td></tr>
                   <tr><td className="px-3 py-2 font-medium text-zinc-200">Model Explorer</td><td className="px-3 py-2">Search, context slider, sortable table, expand row, copy run/download command.</td></tr>
                   <tr><td className="px-3 py-2 font-medium text-zinc-200">Paste & download</td><td className="px-3 py-2">Paste command or model ID; run forellm download; result auto-dismisses after 7 s.</td></tr>
+                  <tr><td className="px-3 py-2 font-medium text-zinc-200">Multi-Model Cart</td><td className="px-3 py-2">Add models; see total memory vs effective VRAM/RAM/cores (same as simulator when active).</td></tr>
                   <tr><td className="px-3 py-2 font-medium text-zinc-200">Refresh</td><td className="px-3 py-2">Reload system and fit data (respects simulator override).</td></tr>
                   <tr><td className="px-3 py-2 font-medium text-zinc-200">Window controls</td><td className="px-3 py-2">Minimize, Maximize/Restore, Close (Electron).</td></tr>
                 </tbody>
