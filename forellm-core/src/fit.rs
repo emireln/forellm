@@ -6,6 +6,9 @@ use crate::models::{self, LlmModel, UseCase};
 const MIN_HEADROOM_RATIO: f64 = 1.03;
 /// Headroom ratio above minimum required for "Good" fit (vs "Marginal") on GPU/offload paths.
 const GOOD_FIT_HEADROOM_RATIO: f64 = 1.2;
+/// For CPU-only: require at least this fraction of recommended RAM, else TooTight (avoids marking
+/// huge models as "Marginal" when they only fit with very aggressive quant and would OOM or be unusable).
+const CPU_ONLY_MIN_RECOMMENDED_RATIO: f64 = 0.5;
 
 /// Inference runtime — the software framework used for inference.
 /// Orthogonal to `GpuBackend` which represents hardware.
@@ -423,6 +426,11 @@ fn score_fit(
             }
         }
         RunMode::CpuOnly => {
+            // CPU-only: if available RAM is far below recommended, mark TooTight (huge models
+            // that only "fit" with very low quant would be fatal in practice)
+            if recommended > 0.0 && mem_available < recommended * CPU_ONLY_MIN_RECOMMENDED_RATIO {
+                return FitLevel::TooTight;
+            }
             // CPU-only is always a compromise -- cap at Marginal
             FitLevel::Marginal
         }
@@ -1110,9 +1118,16 @@ mod tests {
 
     #[test]
     fn test_score_fit_cpu_caps_at_marginal() {
-        // CPU-only never reaches Perfect
+        // CPU-only never reaches Perfect; enough RAM vs recommended => Marginal
         let fit = score_fit(4.0, 32.0, 8.0, RunMode::CpuOnly);
         assert_eq!(fit, FitLevel::Marginal);
+    }
+
+    #[test]
+    fn test_score_fit_cpu_only_too_tight_when_below_half_recommended() {
+        // CPU-only: available RAM below half of recommended => TooTight (huge models that would be fatal)
+        let fit = score_fit(20.0, 24.0, 80.0, RunMode::CpuOnly);
+        assert_eq!(fit, FitLevel::TooTight);
     }
 
     #[test]

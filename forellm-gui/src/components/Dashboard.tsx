@@ -50,6 +50,7 @@ interface Props {
   simulating: boolean
   contextLength: number
   hardwareOverride: HardwareOverride | null
+  runnableCountDetected: number | null
   onSimulate: (override: HardwareOverride | null) => void
   onContextChange: (ctx: number) => void
   onAddToCart: (model: ModelFit) => void
@@ -66,6 +67,7 @@ export function Dashboard({
   simulating,
   contextLength,
   hardwareOverride,
+  runnableCountDetected,
   onSimulate,
   onContextChange,
   onAddToCart,
@@ -94,7 +96,7 @@ export function Dashboard({
             ForeLLM
           </span>
           <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[10px] text-emerald-400">
-            v0.1.2026
+            v0.32.2026
           </span>
           {simulating && (
             <span className="ml-2 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
@@ -179,8 +181,12 @@ export function Dashboard({
                 <HardwarePanel
                   system={systemData?.system ?? fitData?.system ?? null}
                   loading={loading}
+                  models={fitData?.models ?? []}
+                  contextLength={contextLength}
                   hardwareOverride={hardwareOverride}
+                  runnableCountDetected={runnableCountDetected}
                   onSimulate={onSimulate}
+                  onContextChange={onContextChange}
                 />
               </div>
               <div className="shrink-0 border-t border-zinc-800/60 px-2 py-2">

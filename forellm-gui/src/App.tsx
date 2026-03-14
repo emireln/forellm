@@ -11,6 +11,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [hardwareOverride, setHardwareOverride] = useState<HardwareOverride | null>(null)
   const [contextLength, setContextLength] = useState(4096)
+  const [runnableCountDetected, setRunnableCountDetected] = useState<number | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
 
   const fetchData = useCallback(
@@ -29,8 +30,19 @@ export default function App() {
           }) as Promise<FitData>
         ])
 
+        // CLI JSON sends fit_level as "Too Tight"; normalize to "TooTight" so counts and badges work
+        if (fit?.models) {
+          fit.models = fit.models.map((m) => ({
+            ...m,
+            fit_level: (m.fit_level as string) === 'Too Tight' ? 'TooTight' : m.fit_level
+          }))
+        }
+
         setSystemData(sys)
         setFitData(fit)
+        if (!override && fit?.models) {
+          setRunnableCountDetected(fit.models.filter((m) => m.fit_level !== 'TooTight').length)
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
       } finally {
@@ -120,6 +132,7 @@ export default function App() {
       simulating={hardwareOverride != null}
       contextLength={contextLength}
       hardwareOverride={hardwareOverride}
+      runnableCountDetected={runnableCountDetected}
       onSimulate={handleSimulate}
       onContextChange={handleContextChange}
       onAddToCart={addToCart}

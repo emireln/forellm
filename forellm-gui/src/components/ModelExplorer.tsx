@@ -14,7 +14,8 @@ import {
   Loader2,
   Layers,
   Download,
-  Terminal
+  AlertCircle,
+  X
 } from 'lucide-react'
 
 interface Props {
@@ -30,30 +31,6 @@ const CTX_STOPS = [2048, 4096, 8192, 16384, 32768, 65536, 131072]
 
 function formatCtx(n: number): string {
   return n >= 1024 ? `${(n / 1024).toFixed(0)}k` : String(n)
-}
-
-/** Parse pasted text into model + options for forellm download. */
-function parseDownloadCommand(input: string): { model: string; quant?: string; list?: boolean } | null {
-  const s = input.trim()
-  if (!s) return null
-  let model = ''
-  let quant: string | undefined
-  let list = false
-
-  const downloadMatch = s.match(/\bdownload\s+(?:"([^"]+)"|'([^']+)'|(\S+))/i)
-  if (downloadMatch) {
-    model = (downloadMatch[1] ?? downloadMatch[2] ?? downloadMatch[3] ?? '').trim()
-  }
-  const quantMatch = s.match(/--quant\s+(\S+)/i)
-  if (quantMatch) quant = quantMatch[1]
-  if (/\b--list\b/.test(s)) list = true
-
-  if (!model) {
-    const quoted = s.match(/^["']([^"']+)["']$/) ?? s.match(/"([^"]+)"/)
-    model = quoted ? quoted[1] : s.split(/\s+/)[0]
-  }
-  if (!model) return null
-  return { model, quant, list }
 }
 
 function ollamaTag(name: string): string | null {
@@ -87,18 +64,14 @@ export function ModelExplorer({
   const [sortCol, setSortCol] = useState<'score' | 'params' | 'mem' | 'tps'>('score')
   const [sortAsc, setSortAsc] = useState(false)
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null)
-  const [downloadInput, setDownloadInput] = useState('')
-  const [downloadRunning, setDownloadRunning] = useState(false)
-  const [downloadResult, setDownloadResult] = useState<{
-    success: boolean
-    stderr: string
-  } | null>(null)
+  const [downloadRunningModel, setDownloadRunningModel] = useState<string | null>(null)
+  const [downloadError, setDownloadError] = useState<{ model: string; message: string } | null>(null)
 
   useEffect(() => {
-    if (!downloadResult) return
-    const t = setTimeout(() => setDownloadResult(null), 7000)
+    if (!downloadError) return
+    const t = setTimeout(() => setDownloadError(null), 8000)
     return () => clearTimeout(t)
-  }, [downloadResult])
+  }, [downloadError])
 
   const cartNames = useMemo(
     () => new Set(cartItems.map((c) => c.model.name)),
@@ -141,24 +114,21 @@ export function ModelExplorer({
     setTimeout(() => setCopiedCmd(null), 2000)
   }
 
-  async function runDownloadCommand() {
-    const parsed = parseDownloadCommand(downloadInput)
-    if (!parsed || !window.forellm?.downloadModel) return
-    setDownloadRunning(true)
-    setDownloadResult(null)
+  async function runDownloadForModel(modelName: string) {
+    if (!window.forellm?.downloadModel) return
+    setDownloadError(null)
+    setDownloadRunningModel(modelName)
     try {
-      const result = await window.forellm.downloadModel(parsed.model, {
-        quant: parsed.quant,
-        list: parsed.list
-      })
-      setDownloadResult({ success: result.success, stderr: result.stderr })
+      const result = await window.forellm.downloadModel(modelName, {})
+      if (!result.success) {
+        const msg = (result.stderr || result.stdout || 'Download failed.').trim()
+        setDownloadError({ model: modelName, message: msg || 'Download failed.' })
+      }
     } catch (err) {
-      setDownloadResult({
-        success: false,
-        stderr: err instanceof Error ? err.message : String(err)
-      })
+      const message = err instanceof Error ? err.message : String(err)
+      setDownloadError({ model: modelName, message })
     } finally {
-      setDownloadRunning(false)
+      setDownloadRunningModel(null)
     }
   }
 
@@ -209,47 +179,24 @@ export function ModelExplorer({
         {loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-500" />}
       </div>
 
-      {/* Paste & run download command */}
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-800/80 bg-zinc-900/30 px-4 py-2">
-        <Terminal className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-        <input
-          type="text"
-          placeholder='Paste command or model ID (e.g. forellm download "Qwen/Qwen2-1.5B")'
-          value={downloadInput}
-          onChange={(e) => setDownloadInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && runDownloadCommand()}
-          disabled={downloadRunning || !window.forellm?.downloadModel}
-          className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-950 px-3 py-1.5 font-mono text-xs text-zinc-300 outline-none placeholder:text-zinc-600 focus:border-cyan-500/50 disabled:opacity-50"
-        />
-        <button
-          type="button"
-          onClick={runDownloadCommand}
-          disabled={
-            downloadRunning ||
-            !downloadInput.trim() ||
-            !parseDownloadCommand(downloadInput) ||
-            !window.forellm?.downloadModel
-          }
-          className="flex shrink-0 items-center gap-1.5 rounded border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-400 transition hover:bg-cyan-500/20 disabled:opacity-40"
-        >
-          {downloadRunning ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Download className="h-3.5 w-3.5" />
-          )}
-          {downloadRunning ? 'Downloading…' : 'Download'}
-        </button>
-      </div>
-      {downloadResult && (
-        <div
-          className={cn(
-            'shrink-0 border-b border-zinc-800/80 px-4 py-2 font-mono text-[10px]',
-            downloadResult.success ? 'bg-emerald-500/5 text-emerald-400' : 'bg-red-500/5 text-red-400'
-          )}
-        >
-          <pre className="max-h-24 overflow-auto whitespace-pre-wrap break-all">
-            {downloadResult.stderr.trim() || (downloadResult.success ? 'Download finished.' : 'Download failed.')}
-          </pre>
+      {/* Download error */}
+      {downloadError && (
+        <div className="flex shrink-0 items-start gap-2 border-b border-red-900/50 bg-red-950/40 px-4 py-2 text-xs text-red-300">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+          <div className="min-w-0 flex-1">
+            <span className="font-medium text-red-200">Could not download “{downloadError.model}”</span>
+            <pre className="mt-1 max-h-20 overflow-auto whitespace-pre-wrap break-all font-mono text-[10px] text-red-300/90">
+              {downloadError.message}
+            </pre>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDownloadError(null)}
+            className="shrink-0 rounded p-1 text-red-400 transition hover:bg-red-500/20 hover:text-red-300"
+            title="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 
@@ -268,7 +215,7 @@ export function ModelExplorer({
               <SortTh label="Tok/s" col="tps" current={sortCol} asc={sortAsc} onClick={toggleSort} />
               <th className="px-3 py-2">Fit</th>
               <th className="px-3 py-2">Use Case</th>
-              <th className="px-3 py-2 text-right">Actions</th>
+              <th className="px-3 py-2 text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -285,9 +232,11 @@ export function ModelExplorer({
                   inCart={inCart}
                   ollamaTag={tag}
                   copiedCmd={copiedCmd}
+                  downloading={downloadRunningModel === m.name}
                   onToggleExpand={() => setExpandedRow(expanded ? null : m.name)}
                   onAddToCart={() => onAddToCart(m)}
                   onCopy={copyCmd}
+                  onDownload={() => runDownloadForModel(m.name)}
                 />
               )
             })}
@@ -338,18 +287,22 @@ function ModelRow({
   inCart,
   ollamaTag: tag,
   copiedCmd,
+  downloading,
   onToggleExpand,
   onAddToCart,
-  onCopy
+  onCopy,
+  onDownload
 }: {
   model: ModelFit
   expanded: boolean
   inCart: boolean
   ollamaTag: string | null
   copiedCmd: string | null
+  downloading: boolean
   onToggleExpand: () => void
   onAddToCart: () => void
   onCopy: (cmd: string) => void
+  onDownload: () => void
 }) {
   const runCmd = tag ? `ollama run ${tag}` : `forellm download "${m.name}"`
 
@@ -395,17 +348,34 @@ function ModelRow({
           <FitBadge level={m.fit_level} />
         </td>
         <td className="px-3 py-2 text-zinc-400">{m.use_case}</td>
-        <td className="px-3 py-2 text-right">
-          <div className="flex items-center justify-end gap-1">
+        <td className="px-3 py-2 text-center">
+          <div className="flex items-center justify-center gap-1">
             {m.fit_level !== 'TooTight' && (
               <button
                 onClick={(e) => { e.stopPropagation(); onCopy(runCmd) }}
-                title={runCmd}
+                title={`Copy: ${runCmd}`}
                 className="rounded p-1 text-zinc-500 transition hover:bg-zinc-700 hover:text-emerald-400"
               >
                 {copiedCmd === runCmd ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
               </button>
             )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDownload()
+              }}
+              disabled={m.fit_level === 'TooTight' || downloading || !window.forellm?.downloadModel}
+              title={m.fit_level === 'TooTight' ? 'Model does not fit' : 'Download this model'}
+              className={cn(
+                'rounded p-1 transition',
+                downloading
+                  ? 'text-cyan-400'
+                  : 'text-zinc-500 hover:bg-zinc-700 hover:text-cyan-400 disabled:opacity-30'
+              )}
+            >
+              {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            </button>
             <button
               type="button"
               onClick={(e) => {

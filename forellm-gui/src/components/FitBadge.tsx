@@ -22,16 +22,21 @@ const DOTS: Record<FitLevel, string> = {
   TooTight: 'bg-red-400 shadow-neon-red'
 }
 
-export function FitBadge({ level }: { level: FitLevel }) {
+const FIT_LEVELS: FitLevel[] = ['Perfect', 'Good', 'Marginal', 'TooTight']
+
+export function FitBadge({ level }: { level: FitLevel | string }) {
+  // CLI JSON may send "Too Tight" (with space); normalize so badge always renders
+  const raw = (level as string) === 'Too Tight' ? 'TooTight' : level
+  const key: FitLevel = FIT_LEVELS.includes(raw as FitLevel) ? (raw as FitLevel) : 'Marginal'
   return (
     <span
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
-        STYLES[level]
+        STYLES[key]
       )}
     >
-      <span className={cn('neon-dot', DOTS[level])} />
-      {LABELS[level]}
+      <span className={cn('neon-dot', DOTS[key])} />
+      {LABELS[key]}
     </span>
   )
 }
