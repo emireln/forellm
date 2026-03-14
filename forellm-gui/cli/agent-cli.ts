@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 /**
  * Agent Fore CLI — terminal chat with Ollama using the same agents and tools as the GUI.
- * Requires: Node 18+, forellm binary (cargo build --release), Ollama running.
+ * Requires: Node 18+, forellm binary (cargo build --release). Backend: Ollama (default) or OpenClaw (openclaw gateway --port 18789).
  *
  * Usage:
  *   npx tsx cli/agent-cli.ts [--model MODEL] [--agent general|data|web|coding] [--file PATH ...]
@@ -35,27 +35,38 @@ function printHelp(): void {
       `  ${g}/quit${r}  ${y}/exit  /q${r}   Exit the CLI.\n\n` +
       `  ${g}/clear${r}  ${y}/new${r}        Clear the conversation (start fresh with same agent/model).\n\n` +
       `  ${g}/agent${r} [id]        Show current agent or switch: general, data, web, coding.\n` +
-      `  ${g}/model${r} [name]      Show current model or switch Ollama model.\n` +
-      `  ${g}/models${r}             List available Ollama models.\n\n` +
+      `  ${g}/model${r} [name]      Show current model or switch model (Ollama or OpenClaw).\n` +
+      `  ${g}/models${r}             List available models for current backend.\n` +
+      `  ${d}Start with --backend ollama (default) or --backend openclaw; --openclaw-url <url> for OpenClaw.${r}\n\n` +
       `  ${g}/file${r} <path>       Attach a file (agent can read_document). Repeat to attach more.\n` +
       `  ${g}/files${r}              List attached files.\n\n` +
-      `${d}Agents: general (ForeLLM + docs + run), data (+ Python), web (+ web_search), coding (+ Python).${r}\n\n`
+      `${d}Agents: general (ForeLLM + docs + run), data (+ Python), web (+ web_search), coding (+ Python).${r}\n` +
+      `${d}When the agent uses run_command (list dir, read file, etc.) you will be asked Allow? [y/N]; commands run in: ${process.cwd()}${r}\n\n`
   )
 }
 
-// --- Args: model is optional; if not set we auto-detect from Ollama (running or available)
+// --- Args: model optional (auto-detect for Ollama); backend ollama|openclaw; openclaw-url
 let modelFromArg: string | null = null
 let agentId = 'general'
+let backendFromArg: 'ollama' | 'openclaw' = 'ollama'
+let openclawUrlFromArg: string | null = null
 const filePaths: string[] = []
 for (let i = 2; i < process.argv.length; i++) {
   if (process.argv[i] === '--model' && process.argv[i + 1]) {
     modelFromArg = process.argv[++i]
   } else if (process.argv[i] === '--agent' && process.argv[i + 1]) {
     agentId = process.argv[++i]
+  } else if (process.argv[i] === '--backend' && process.argv[i + 1]) {
+    const b = process.argv[++i].toLowerCase()
+    if (b === 'openclaw' || b === 'ollama') backendFromArg = b
+  } else if (process.argv[i] === '--openclaw-url' && process.argv[i + 1]) {
+    openclawUrlFromArg = process.argv[++i]
   } else if (process.argv[i] === '--file' && process.argv[i + 1]) {
     filePaths.push(process.argv[++i])
   }
 }
+
+const OPENCLAW_BASE = openclawUrlFromArg ?? process.env.OPENCLAW_BASE_URL ?? 'http://127.0.0.1:18789'
 
 // File store: file_id -> absolute path (CLI: we use path as id or a short id)
 const fileIdToPath = new Map<string, string>()
@@ -107,6 +118,19 @@ async function listOllamaModels(): Promise<string[]> {
   }
 }
 
+async function listOpenClawModels(baseUrl: string): Promise<string[]> {
+  try {
+    const base = baseUrl.replace(/\/$/, '')
+    const res = await fetch(`${base}/v1/models`, { headers: { 'x-openclaw-agent-id': 'main' } })
+    if (!res.ok) return ['openclaw']
+    const data = (await res.json()) as { data?: Array<{ id?: string }> }
+    const ids = (data.data ?? []).map((m) => m.id ?? '').filter(Boolean)
+    return ids.length > 0 ? ids : ['openclaw']
+  } catch {
+    return ['openclaw']
+  }
+}
+
 function attachFile(filePath: string): { ok: boolean; error?: string; name?: string; id?: string } {
   const resolved = path.resolve(filePath)
   if (!existsSync(resolved)) return { ok: false, error: 'File not found' }
@@ -123,50 +147,64 @@ const C = {
   bold: '\x1b[1m',
   dim: '\x1b[2m',
   cyan: '\x1b[36m',
-  magenta: '\x1b[35m',
   blue: '\x1b[34m',
   green: '\x1b[32m',
   yellow: '\x1b[33m',
+  orange: '\x1b[38;5;208m',
+  purple: '\x1b[35m',
+  gray: '\x1b[90m',
   white: '\x1b[37m'
+}
+const AGENT_LABEL = `${C.purple}Agent:${C.reset} `
+const PROMPT = `${C.cyan} │ ${C.reset}`
+const STATUS_READY = `${C.orange}ready${C.reset}`
+const STATUS_THINKING = `${C.orange}thinking${C.reset}`
+
+/** Replace this with your ASCII art (multi-line). Used as the CLI title. */
+const AGENT_FORE_ART = `
+ █████╗  ██████╗ ███████╗███╗   ██╗████████╗    ███████╗ ██████╗ ██████╗ ███████╗
+██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝    ██╔════╝██╔═══██╗██╔══██╗██╔════╝
+███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║       █████╗  ██║   ██║██████╔╝█████╗  
+██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║       ██╔══╝  ██║   ██║██╔══██╗██╔══╝  
+██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║       ██║     ╚██████╔╝██║  ██║███████╗
+╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝       ╚═╝      ╚═════╝ ╚═╝  ╚═╝╚══════╝                                                                                
+`.trim()
+
+function center(text: string, width: number): string {
+  const n = Math.max(0, width - text.length)
+  return ' '.repeat(Math.floor(n / 2)) + text + ' '.repeat(Math.ceil(n / 2))
+}
+
+function printTitle(): void {
+  const lines = AGENT_FORE_ART.split('\n')
+  const width = Math.max(...lines.map((l) => l.length), 56)
+  for (const line of lines) {
+    process.stderr.write(`${C.gray}${center(line, width)}${C.reset}\n`)
+  }
 }
 
 function clearLine(): void {
   process.stderr.write('\x1b[2K\r')
 }
 
-function drawBanner(modelName: string, agentName: string, fileCount: number): void {
-  const w = 48
-  const line = (c: string) => c.repeat(w)
-  const truncate = (s: string, max: number) => (s.length <= max ? s : s.slice(0, max - 3) + '...')
-
-  // Visible content must be exactly (w) chars between the pipes. "  " + "Model " (6) + m + "  •  " (5) + "Agent " (6) + a + spaces = 48
-  // So 2 + 6 + m + 5 + 6 + a + spaces = 19 + m + a + spaces = 48  =>  m + a <= 29
-  const maxModel = 17
-  const maxAgent = 12
-  const m = truncate(modelName, maxModel)
-  const a = truncate(agentName, maxAgent)
-  const modelAgentVisible = 2 + 6 + m.length + 5 + 6 + a.length
-  const pad = w - modelAgentVisible
-
+function drawOpencodeStyle(modelName: string, agentName: string, fileCount: number): void {
   process.stderr.write('\n')
-  process.stderr.write(`${C.cyan}╭${line('─')}╮${C.reset}\n`)
-  process.stderr.write(`${C.cyan}│${C.reset}${' '.repeat(w)}${C.cyan}│${C.reset}\n`)
+  printTitle()
+  process.stderr.write('\n')
   process.stderr.write(
-    `${C.cyan}│${C.reset}  ${C.bold}${C.magenta} AGENT FORE CLI ${C.reset}${' '.repeat(w - 18)}${C.cyan}│${C.reset}\n`
+    `  ${C.dim}/help commands  /agent switch agent  /models list models${C.reset}\n`
   )
-  process.stderr.write(`${C.cyan}│${C.reset}${' '.repeat(w)}${C.cyan}│${C.reset}\n`)
-  process.stderr.write(
-    `${C.cyan}│${C.reset}  ${C.dim}Model${C.reset} ${C.green}${m}${C.reset}  ${C.dim}•${C.reset}  ${C.dim}Agent${C.reset} ${C.yellow}${a}${C.reset}${' '.repeat(pad)}${C.cyan}│${C.reset}\n`
-  )
+  process.stderr.write(`  ${C.orange}●${C.reset} ${C.dim}Tip Type /help for commands, /quit to exit${C.reset}\n\n`)
   if (fileCount > 0) {
-    const fileText = `Files attached: ${fileCount}`
-    process.stderr.write(`${C.cyan}│${C.reset}  ${C.dim}${fileText}${C.reset}${' '.repeat(w - 2 - fileText.length)}${C.cyan}│${C.reset}\n`)
+    process.stderr.write(`  ${C.dim}Files attached: ${fileCount}${C.reset}\n\n`)
   }
-  process.stderr.write(`${C.cyan}│${C.reset}${' '.repeat(w)}${C.cyan}│${C.reset}\n`)
-  const footer = 'Type /help for commands • /quit to exit'
-  process.stderr.write(`${C.cyan}│${C.reset}  ${C.dim}${footer}${C.reset}${' '.repeat(w - 2 - footer.length)}${C.cyan}│${C.reset}\n`)
-  process.stderr.write(`${C.cyan}╰${line('─')}╯${C.reset}\n`)
-  process.stderr.write('\n')
+}
+
+function drawStatusLine(modelName: string, agentName: string, status: string, backend: 'ollama' | 'openclaw' = 'ollama'): void {
+  const backendLabel = backend === 'openclaw' ? `${C.purple}OpenClaw${C.reset}` : `${C.cyan}Ollama${C.reset}`
+  process.stdout.write(
+    `  ${C.cyan}Chat${C.reset}  ${backendLabel}  ${C.green}${modelName}${C.reset}  ${C.yellow}${agentName}${C.reset}  ${status}\n`
+  )
 }
 
 function spinnerFrame(i: number): string {
@@ -294,11 +332,60 @@ function readDocument(fileId: string): string {
   }
 }
 
+const IMAGE_EXT_CLI = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp'])
+
+async function analyzeImage(fileId: string): Promise<string> {
+  const p = fileIdToPath.get(fileId)
+  if (!p) return 'File not found (invalid file_id or not attached).'
+  const ext = path.extname(p).toLowerCase()
+  if (!IMAGE_EXT_CLI.has(ext)) return 'Not an image file. Use read_document for text/SVG.'
+  try {
+    const buf = readFileSync(p)
+    const base64 = buf.toString('base64')
+    const visionModel = process.env.OLLAMA_VISION_MODEL ?? 'llava'
+    const res = await fetch(`${OLLAMA_BASE}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: visionModel,
+        messages: [{ role: 'user', content: 'Describe this image in detail. Include any text, objects, colors, and context that would help the user.' }],
+        stream: false,
+        images: [base64]
+      })
+    })
+    if (!res.ok) {
+      const t = await res.text()
+      return t || `Ollama ${res.status}. Ensure a vision model is available (e.g. ollama pull llava).`
+    }
+    const data = (await res.json()) as { message?: { content?: string }; error?: string }
+    if (data.error) return data.error
+    const content = data.message?.content?.trim()
+    return content ?? 'No description returned'
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err)
+  }
+}
+
+function resolveForellmInCommand(cmd: string): string {
+  const binary = findBinary()
+  if (!path.isAbsolute(binary)) return cmd
+  const trimmed = cmd.trim()
+  if (trimmed === 'forellm' || trimmed.startsWith('forellm ')) {
+    return binary + trimmed.slice(7)
+  }
+  if (trimmed === 'forellm.exe' || trimmed.startsWith('forellm.exe ')) {
+    return binary + trimmed.slice(11)
+  }
+  return cmd
+}
+
 function runCommand(cmd: string): Promise<{ stdout: string; stderr: string; ok: boolean }> {
   return new Promise((resolve) => {
+    const resolvedCmd = resolveForellmInCommand(cmd)
+    const cwd = process.cwd()
     const shellCmd = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh'
-    const args = process.platform === 'win32' ? ['/c', cmd] : ['-c', cmd]
-    const proc = spawn(shellCmd, args, { cwd: process.cwd(), timeout: 60_000, env: process.env })
+    const args = process.platform === 'win32' ? ['/c', resolvedCmd] : ['-c', resolvedCmd]
+    const proc = spawn(shellCmd, args, { cwd, timeout: 60_000, env: process.env, shell: false })
     let stdout = ''
     let stderr = ''
     proc.stdout?.on('data', (d) => { stdout += d.toString() })
@@ -336,6 +423,7 @@ async function runAgentTool(name: string, argsJson: string): Promise<string> {
   }
   if (name === 'web_search') return webSearch(String(args.query ?? ''))
   if (name === 'read_document') return readDocument(String(args.file_id ?? ''))
+  if (name === 'analyze_image') return analyzeImage(String(args.file_id ?? ''))
   if (name === 'execute_python') return executePython(String(args.code ?? ''))
   if (name === 'run_command') {
     const cmd = String(args.command ?? '').trim()
@@ -370,9 +458,29 @@ function normalizeMessages(messages: unknown[]): unknown[] {
 
 function parseEchoedToolCalls(content: string): Array<{ name: string; arguments: string }> {
   const results: Array<{ name: string; arguments: string }> = []
-  const toolNames = ['read_document', 'web_search', 'execute_python', 'run_command']
-  const re = /tool_call_name\s+(\w+)\s+tool_call_arguments\s+(\{[^]*?\})/gi
+  const toolNames = ['read_document', 'web_search', 'execute_python', 'run_command', 'analyze_image']
+
+  // Fallback: <run_command>forellm fit --json --perfect</run_command> (model echoed command as text)
+  const runCommandTagRe = /<run_command>([\s\S]*?)<\/run_command>/gi
   let m: RegExpExecArray | null
+  while ((m = runCommandTagRe.exec(content)) !== null) {
+    const cmd = m[1].trim()
+    if (cmd) results.push({ name: 'run_command', arguments: JSON.stringify({ command: cmd }) })
+  }
+  // Fallback: <read_document>file_id</read_document> (model said it would read but echoed as text)
+  const readDocTagRe = /<read_document>([\s\S]*?)<\/read_document>/gi
+  while ((m = readDocTagRe.exec(content)) !== null) {
+    const fileId = m[1].trim()
+    if (fileId) results.push({ name: 'read_document', arguments: JSON.stringify({ file_id: fileId }) })
+  }
+  // Fallback: <analyze_image>file_id</analyze_image>
+  const analyzeImageTagRe = /<analyze_image>([\s\S]*?)<\/analyze_image>/gi
+  while ((m = analyzeImageTagRe.exec(content)) !== null) {
+    const fileId = m[1].trim()
+    if (fileId) results.push({ name: 'analyze_image', arguments: JSON.stringify({ file_id: fileId }) })
+  }
+
+  const re = /tool_call_name\s+(\w+)\s+tool_call_arguments\s+(\{[^]*?\})/gi
   while ((m = re.exec(content)) !== null) {
     try {
       JSON.parse(m[2])
@@ -404,6 +512,8 @@ type ChatResult = {
   error?: string
   pendingCommand?: { command: string }
   continueState?: {
+    backend?: 'openclaw'
+    baseUrl?: string
     model: string
     messages: unknown[]
     pendingToolCall: { id: string; name: string; arguments: string }
@@ -512,6 +622,185 @@ async function ollamaChat(
   return assistantContents.length > 0 ? { success: true, contents: assistantContents } : { success: false, error: 'Tool loop exceeded max rounds' }
 }
 
+/** One streaming round: POST with stream:true, read NDJSON, call onDelta for each content chunk, return fullContent + toolCalls. */
+async function ollamaChatStreamRound(
+  modelName: string,
+  currentMessages: unknown[],
+  toolSchemas: unknown[] | undefined,
+  onDelta: (delta: string) => void
+): Promise<{ ok: boolean; fullContent: string; toolCalls: Array<{ id?: string; function?: { name?: string; arguments?: string } }>; error?: string }> {
+  const toSend = normalizeMessages(currentMessages)
+  const body: Record<string, unknown> = {
+    model: modelName,
+    messages: toSend,
+    stream: true
+  }
+  if (toolSchemas && toolSchemas.length > 0) body.tools = toolSchemas
+
+  const res = await fetch(`${OLLAMA_BASE}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+  if (!res.ok) {
+    const t = await res.text()
+    return { ok: false, fullContent: '', toolCalls: [], error: t || `Ollama ${res.status}` }
+  }
+
+  const reader = res.body?.getReader()
+  const decoder = new TextDecoder()
+  if (!reader) return { ok: false, fullContent: '', toolCalls: [], error: 'No response body' }
+
+  let buffer = ''
+  let fullContent = ''
+  type ToolEntry = { id?: string; function?: { name?: string; arguments?: string } }
+  const accumulatedToolCalls: ToolEntry[] = []
+
+  while (true) {
+    const { done: streamDone, value } = await reader.read()
+    if (streamDone) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed) continue
+      try {
+        const data = JSON.parse(trimmed) as {
+          message?: { content?: string; tool_calls?: Array<{ id?: string; function?: { name?: string; arguments?: string } }> }
+        }
+        if (data.message?.content != null) {
+          fullContent += data.message.content
+          onDelta(data.message.content)
+        }
+        if (data.message?.tool_calls?.length) {
+          data.message.tool_calls.forEach((tc, i) => {
+            if (!accumulatedToolCalls[i]) accumulatedToolCalls[i] = { id: tc.id, function: { name: '', arguments: '' } }
+            const acc = accumulatedToolCalls[i].function!
+            if (tc.function?.name) acc.name = tc.function.name
+            if (tc.function?.arguments != null) acc.arguments = (acc.arguments || '') + tc.function.arguments
+          })
+        }
+      } catch {
+        // skip malformed line
+      }
+    }
+  }
+  if (buffer.trim()) {
+    try {
+      const data = JSON.parse(buffer.trim()) as {
+        message?: { content?: string; tool_calls?: Array<{ id?: string; function?: { name?: string; arguments?: string } }> }
+      }
+      if (data.message?.content != null) {
+        fullContent += data.message.content
+        onDelta(data.message.content)
+      }
+      if (data.message?.tool_calls?.length) {
+        data.message.tool_calls.forEach((tc, i) => {
+          if (!accumulatedToolCalls[i]) accumulatedToolCalls[i] = { id: tc.id, function: { name: '', arguments: '' } }
+          const acc = accumulatedToolCalls[i].function!
+          if (tc.function?.name) acc.name = tc.function.name
+          if (tc.function?.arguments != null) acc.arguments = (acc.arguments || '') + tc.function.arguments
+        })
+      }
+    } catch {
+      //
+    }
+  }
+
+  const toolCalls = accumulatedToolCalls
+    .filter((tc) => tc.function?.name)
+    .map((tc) => ({
+      id: tc.id ?? `call_${randomUUID()}`,
+      function: { name: tc.function!.name!, arguments: tc.function!.arguments || '{}' }
+    }))
+  return { ok: true, fullContent, toolCalls }
+}
+
+/** Stream agent reply token-by-token. Uses same tool loop as ollamaChat; onDelta(delta) for each chunk, onNewMessage() before each new assistant turn after tools. */
+async function ollamaChatStream(
+  modelName: string,
+  messages: Array<ChatMessage>,
+  tools: unknown[],
+  onDelta: (delta: string) => void,
+  onNewMessage: () => void
+): Promise<ChatResult> {
+  const maxRounds = 5
+  let currentMessages = [...messages]
+  const toolSchemas = tools.length > 0 ? tools : undefined
+  const assistantContents: string[] = []
+
+  for (let round = 0; round < maxRounds; round++) {
+    const { ok, fullContent, toolCalls: rawToolCalls, error } = await ollamaChatStreamRound(
+      modelName,
+      currentMessages,
+      toolSchemas,
+      onDelta
+    )
+    if (!ok) return { success: false, error: error ?? 'Stream round failed' }
+
+    const content = fullContent.trim()
+    if (content) assistantContents.push(content)
+
+    let toolCalls = rawToolCalls
+    if (toolCalls.length === 0) {
+      const echoed = parseEchoedToolCalls(content)
+      if (echoed.length > 0) {
+        toolCalls = echoed.map((e) => ({
+          id: `call_${randomUUID()}`,
+          function: { name: e.name, arguments: e.arguments }
+        }))
+      }
+    }
+
+    if (toolCalls.length === 0) {
+      return assistantContents.length > 0 ? { success: true, contents: assistantContents } : { success: true, content: '' }
+    }
+
+    currentMessages.push({
+      role: 'assistant',
+      content: fullContent || '',
+      tool_calls: toolCalls
+    })
+
+    for (const tc of toolCalls) {
+      const name = tc.function?.name ?? ''
+      const argsStr = typeof tc.function?.arguments === 'string' ? tc.function.arguments : JSON.stringify(tc.function?.arguments ?? '{}')
+      const result = await runAgentTool(name, argsStr)
+
+      if (result.startsWith(PENDING_COMMAND_PREFIX)) {
+        let command = ''
+        try {
+          command = (JSON.parse(result.slice(PENDING_COMMAND_PREFIX.length)) as { command?: string }).command ?? ''
+        } catch {
+          //
+        }
+        return {
+          success: true,
+          contents: assistantContents.length > 0 ? assistantContents : undefined,
+          content: assistantContents[assistantContents.length - 1],
+          pendingCommand: { command },
+          continueState: {
+            model: modelName,
+            messages: currentMessages,
+            pendingToolCall: { id: tc.id ?? '', name, arguments: argsStr },
+            tools: toolSchemas
+          }
+        }
+      }
+
+      currentMessages.push({
+        role: 'tool',
+        tool_name: name,
+        content: result
+      })
+    }
+    onNewMessage()
+  }
+
+  return assistantContents.length > 0 ? { success: true, contents: assistantContents } : { success: false, error: 'Tool loop exceeded max rounds' }
+}
+
 async function ollamaChatContinue(
   continueState: { model: string; messages: unknown[]; pendingToolCall: { name: string; arguments: string }; tools?: unknown },
   toolResult: string
@@ -552,6 +841,210 @@ async function ollamaChatContinue(
   return { success: true, contents: content ? [content] : [] }
 }
 
+// --- OpenClaw (OpenAI-compatible /v1/chat/completions)
+function toOpenAIMessages(messages: unknown[]): Array<{ role: string; content?: string; tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }>; tool_call_id?: string }> {
+  const out: Array<{ role: string; content?: string; tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }>; tool_call_id?: string }> = []
+  let lastToolCallIds: string[] = []
+  for (const m of messages) {
+    const msg = m as Record<string, unknown>
+    const role = String(msg.role ?? '')
+    if (role === 'system' || role === 'user') {
+      out.push({ role, content: String(msg.content ?? '') })
+      lastToolCallIds = []
+      continue
+    }
+    if (role === 'assistant') {
+      const toolCalls = msg.tool_calls as Array<{ id?: string; function?: { name?: string; arguments?: string } }> | undefined
+      const openaiMsg: { role: string; content?: string; tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }> } = {
+        role: 'assistant',
+        content: (String(msg.content ?? '')).trim() || undefined
+      }
+      if (Array.isArray(toolCalls) && toolCalls.length > 0) {
+        lastToolCallIds = toolCalls.map((tc) => tc.id ?? `call_${randomUUID()}`)
+        openaiMsg.tool_calls = toolCalls.map((tc) => ({
+          id: tc.id ?? lastToolCallIds[lastToolCallIds.length - 1],
+          type: 'function',
+          function: {
+            name: tc.function?.name ?? '',
+            arguments: typeof tc.function?.arguments === 'string' ? tc.function.arguments : JSON.stringify(tc.function?.arguments ?? {})
+          }
+        }))
+      } else {
+        lastToolCallIds = []
+      }
+      out.push(openaiMsg)
+      continue
+    }
+    if (role === 'tool') {
+      const id = (msg.tool_call_id as string) ?? (lastToolCallIds.length > 0 ? lastToolCallIds.shift()! : `call_${randomUUID()}`)
+      out.push({ role: 'tool', tool_call_id: id, content: String(msg.content ?? '') })
+    }
+  }
+  return out
+}
+
+function toOpenAITools(tools: unknown[]): unknown[] {
+  return (tools as Array<{ type: string; function: { name: string; description: string; parameters?: object } }>).map((t) => ({
+    type: 'function',
+    function: {
+      name: t.function.name,
+      description: t.function.description,
+      parameters: t.function.parameters ?? { type: 'object', properties: {} }
+    }
+  }))
+}
+
+async function openclawChatStream(
+  baseUrl: string,
+  modelName: string,
+  messages: Array<ChatMessage>,
+  tools: unknown[],
+  onDelta: (delta: string) => void,
+  onNewMessage: () => void
+): Promise<ChatResult> {
+  const base = baseUrl.replace(/\/$/, '')
+  const maxRounds = 5
+  let currentMessages: unknown[] = [...messages]
+  const toolSchemas = tools.length > 0 ? tools : undefined
+  const assistantContents: string[] = []
+
+  for (let round = 0; round < maxRounds; round++) {
+    const body: { model: string; messages: unknown[]; stream: boolean; tools?: unknown } = {
+      model: modelName || 'openclaw',
+      messages: toOpenAIMessages(currentMessages),
+      stream: true
+    }
+    if (toolSchemas) body.tools = toOpenAITools(toolSchemas)
+
+    const res = await fetch(`${base}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-openclaw-agent-id': 'main'
+      },
+      body: JSON.stringify(body)
+    })
+    if (!res.ok) {
+      const t = await res.text()
+      return { success: false, error: t || `OpenClaw ${res.status}` }
+    }
+    const reader = res.body?.getReader()
+    const decoder = new TextDecoder()
+    if (!reader) return { success: false, error: 'No response body' }
+    let buffer = ''
+    let fullContent = ''
+    const accumulatedToolCalls: Array<{ id: string; function: { name: string; arguments: string } }> = []
+
+    while (true) {
+      const { done: streamDone, value } = await reader.read()
+      if (streamDone) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const payload = line.slice(6).trim()
+          if (payload === '[DONE]') continue
+          try {
+            const data = JSON.parse(payload) as {
+              choices?: Array<{ delta?: { content?: string; tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> } }>
+            }
+            const delta = data.choices?.[0]?.delta
+            if (delta?.content) {
+              fullContent += delta.content
+              onDelta(delta.content)
+            }
+            if (delta?.tool_calls?.length) {
+              for (const tc of delta.tool_calls) {
+                const i = tc.index ?? accumulatedToolCalls.length
+                if (!accumulatedToolCalls[i]) accumulatedToolCalls[i] = { id: tc.id ?? `call_${randomUUID()}`, function: { name: '', arguments: '' } }
+                if (tc.function?.name) accumulatedToolCalls[i].function.name = tc.function.name
+                if (tc.function?.arguments != null) accumulatedToolCalls[i].function.arguments += tc.function.arguments
+              }
+            }
+          } catch {
+            //
+          }
+        }
+      }
+    }
+    const content = fullContent.trim()
+    if (content) assistantContents.push(content)
+    const toolCalls = accumulatedToolCalls.filter((tc) => tc.function.name)
+
+    if (toolCalls.length === 0) {
+      return assistantContents.length > 0 ? { success: true, contents: assistantContents } : { success: true, content: '' }
+    }
+    currentMessages.push({
+      role: 'assistant',
+      content: fullContent || '',
+      tool_calls: toolCalls.map((tc) => ({ id: tc.id, function: { name: tc.function.name, arguments: tc.function.arguments } }))
+    })
+    onNewMessage()
+    for (const tc of toolCalls) {
+      const name = tc.function.name
+      const argsStr = tc.function.arguments ?? '{}'
+      const result = await runAgentTool(name, argsStr)
+      if (result.startsWith(PENDING_COMMAND_PREFIX)) {
+        let command = ''
+        try {
+          command = (JSON.parse(result.slice(PENDING_COMMAND_PREFIX.length)) as { command?: string }).command ?? ''
+        } catch {
+          command = ''
+        }
+        return {
+          success: true,
+          contents: assistantContents.length > 0 ? assistantContents : undefined,
+          content: assistantContents[assistantContents.length - 1],
+          pendingCommand: { command },
+          continueState: {
+            backend: 'openclaw',
+            baseUrl: base,
+            model: modelName || 'openclaw',
+            messages: currentMessages,
+            pendingToolCall: { id: tc.id, name, arguments: argsStr },
+            tools: toolSchemas
+          }
+        }
+      }
+      currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: result })
+    }
+  }
+  return assistantContents.length > 0 ? { success: true, contents: assistantContents } : { success: false, error: 'OpenClaw tool loop exceeded' }
+}
+
+async function openclawChatContinue(
+  continueState: { baseUrl: string; model: string; messages: unknown[]; pendingToolCall: { id: string; name: string; arguments: string }; tools?: unknown },
+  toolResult: string
+): Promise<ChatResult> {
+  const { baseUrl, model: modelName, messages, pendingToolCall, tools: toolSchemas } = continueState
+  const base = baseUrl.replace(/\/$/, '')
+  const currentMessages = [...messages] as Array<Record<string, unknown>>
+  currentMessages.push({ role: 'tool', tool_call_id: pendingToolCall.id, content: toolResult })
+
+  const body: { model: string; messages: unknown[]; stream: boolean; tools?: unknown } = {
+    model: modelName || 'openclaw',
+    messages: toOpenAIMessages(currentMessages),
+    stream: false
+  }
+  if (toolSchemas) body.tools = toOpenAITools(toolSchemas as unknown[])
+
+  const res = await fetch(`${base}/v1/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-openclaw-agent-id': 'main' },
+    body: JSON.stringify(body)
+  })
+  if (!res.ok) {
+    const t = await res.text()
+    return { success: false, error: t || `OpenClaw ${res.status}` }
+  }
+  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> }
+  const msg = data.choices?.[0]?.message
+  if (!msg) return { success: false, error: 'No message in OpenClaw response' }
+  const content = (msg.content ?? '').trim()
+  return { success: true, contents: content ? [content] : [] }
+}
+
 // --- Reply buttons: parse "BUTTONS: X, Y" from assistant message and show [1] X [2] Y
 function parseReplyButtons(content: string): { text: string; buttons: string[] } {
   const match = content.match(/\n\s*BUTTONS:\s*(.+)$/i)
@@ -563,7 +1056,7 @@ function parseReplyButtons(content: string): { text: string; buttons: string[] }
 
 function printAgentReply(content: string): void {
   const { text, buttons } = parseReplyButtons(content)
-  if (text) process.stdout.write('\nAgent: ' + text + '\n')
+  if (text) process.stdout.write(`\n${AGENT_LABEL}${text}\n`)
   if (buttons.length > 0) {
     const parts = buttons.map((b, i) => `  ${C.cyan}[${i + 1}]${C.reset} ${b}`).join('  ')
     process.stdout.write(parts + '\n')
@@ -576,24 +1069,24 @@ async function main() {
   const agent = AGENTS.find((a) => a.id === currentAgentId) ?? AGENTS[0]
 
   let currentModel: string
-  if (modelFromArg) {
+  if (backendFromArg === 'openclaw') {
+    currentModel = modelFromArg || 'openclaw'
+  } else if (modelFromArg) {
     currentModel = modelFromArg
   } else {
     const detected = await withSpinner('Detecting Ollama model...', () => detectOllamaModel())
     if (!detected) {
-      process.stderr.write(
-        `${C.cyan}╭${'─'.repeat(48)}╮${C.reset}\n` +
-          `${C.cyan}│${C.reset} ${C.yellow}No Ollama model detected.${C.reset}${' '.repeat(24)}${C.cyan}│${C.reset}\n` +
-          `${C.cyan}│${C.reset} Run ${C.green}ollama run <model>${C.reset} (e.g. ollama run deepseek-v3)${' '.repeat(2)}${C.cyan}│${C.reset}\n` +
-          `${C.cyan}│${C.reset} or pass ${C.green}--model <name>${C.reset} to use a specific model.${' '.repeat(6)}${C.cyan}│${C.reset}\n` +
-          `${C.cyan}╰${'─'.repeat(48)}╯${C.reset}\n\n`
-      )
+      process.stderr.write('\n')
+      printTitle()
+      process.stderr.write('\n')
+      process.stderr.write(`  ${C.orange}No Ollama model detected.${C.reset}\n`)
+      process.stderr.write(`  ${C.dim}Run ollama run <model> or pass --model <name> or --backend openclaw${C.reset}\n\n`)
       process.exit(1)
     }
     currentModel = detected as string
   }
 
-  drawBanner(currentModel, agent.name, attachedFileNames.length)
+  drawOpencodeStyle(currentModel, agent.name, attachedFileNames.length)
 
   const systemInfo = await getSystemInfo()
   const modelFits = await getModelFits()
@@ -612,7 +1105,7 @@ async function main() {
       const mapping = [...fileIdToPath.entries()]
         .map(([id, p]) => `${path.basename(p)} → file_id "${id}"`)
         .join('; ')
-      sp += `\n\nAttached file_ids for read_document: ${mapping}.`
+      sp += `\n\nAttached file_ids: use read_document for text/SVG, analyze_image for images (PNG, JPEG, GIF, WebP). ${mapping}.`
     }
     return sp
   }
@@ -628,8 +1121,10 @@ async function main() {
   const rl = createInterface({ input: process.stdin, output: process.stdout })
 
   const ask = (): void => {
-    rl.question('You> ', async (line) => {
-      const input = line.trim()
+    const currentAgent = AGENTS.find((a) => a.id === currentAgentId) ?? AGENTS[0]
+    drawStatusLine(currentModel, currentAgent.name, STATUS_READY, backendFromArg)
+    rl.question(PROMPT, async (line) => {
+      const input = (line || '').trim().replace(/\r/g, '')
       if (!input) {
         ask()
         return
@@ -642,7 +1137,7 @@ async function main() {
 
       if (input === '/help') {
         printHelp()
-        ask()
+        setImmediate(() => ask())
         return
       }
 
@@ -650,7 +1145,7 @@ async function main() {
         messages.length = 0
         messages.push({ role: 'system', content: getSystemPromptContent() })
         process.stdout.write(`${C.dim}Chat cleared. Same agent & model.${C.reset}\n\n`)
-        ask()
+        setImmediate(() => ask())
         return
       }
 
@@ -672,16 +1167,21 @@ async function main() {
             process.stdout.write(`${C.dim}Agent: ${C.yellow}${a.name}${C.reset}\n\n`)
           }
         }
-        ask()
+        setImmediate(() => ask())
         return
       }
 
       if (input === '/models') {
-        const list = await listOllamaModels()
-        if (list.length === 0) process.stdout.write(`${C.dim}No Ollama models (or Ollama not reachable).${C.reset}\n`)
-        else process.stdout.write(`${C.dim}Ollama models: ${C.green}${list.join(', ')}${C.reset}\n`)
+        if (backendFromArg === 'openclaw') {
+          const list = await listOpenClawModels(OPENCLAW_BASE)
+          process.stdout.write(`${C.dim}OpenClaw models: ${C.green}${list.join(', ')}${C.reset}\n`)
+        } else {
+          const list = await listOllamaModels()
+          if (list.length === 0) process.stdout.write(`${C.dim}No Ollama models (or Ollama not reachable).${C.reset}\n`)
+          else process.stdout.write(`${C.dim}Ollama models: ${C.green}${list.join(', ')}${C.reset}\n`)
+        }
         process.stdout.write('\n')
-        ask()
+        setImmediate(() => ask())
         return
       }
 
@@ -693,7 +1193,7 @@ async function main() {
           currentModel = rest
           process.stdout.write(`${C.dim}Model: ${C.green}${currentModel}${C.reset}\n\n`)
         }
-        ask()
+        setImmediate(() => ask())
         return
       }
 
@@ -709,7 +1209,7 @@ async function main() {
             process.stdout.write(`${C.dim}Attached: ${C.green}${r.name}${C.reset}\n\n`)
           }
         }
-        ask()
+        setImmediate(() => ask())
         return
       }
 
@@ -717,7 +1217,7 @@ async function main() {
         if (attachedFileNames.length === 0) process.stdout.write(`${C.dim}No files attached. Use /file <path>${C.reset}\n`)
         else process.stdout.write(`${C.dim}Attached: ${attachedFileNames.join(', ')}${C.reset}\n`)
         process.stdout.write('\n')
-        ask()
+        setImmediate(() => ask())
         return
       }
 
@@ -725,33 +1225,79 @@ async function main() {
 
       const currentAgent = AGENTS.find((a) => a.id === currentAgentId) ?? AGENTS[0]
       const tools = currentAgent.tools
-      let result: ChatResult = await ollamaChat(currentModel, messages, tools)
+      process.stdout.write(`\n${C.yellow}You:${C.reset} ${input}\n`)
+      drawStatusLine(currentModel, currentAgent.name, STATUS_THINKING, backendFromArg)
+      process.stdout.write(`\n${AGENT_LABEL}`)
+      let streamedThisTurn = true
+      let result: ChatResult =
+        backendFromArg === 'openclaw'
+          ? await openclawChatStream(
+              OPENCLAW_BASE,
+              currentModel,
+              messages,
+              tools,
+              (delta) => process.stdout.write(delta),
+              () => process.stdout.write(`\n${AGENT_LABEL}`)
+            )
+          : await ollamaChatStream(
+              currentModel,
+              messages,
+              tools,
+              (delta) => process.stdout.write(delta),
+              () => process.stdout.write(`\n${AGENT_LABEL}`)
+            )
 
       while (result.pendingCommand) {
         const cmd = result.pendingCommand.command
-        process.stdout.write(`Run: ${cmd}\nAllow? [y/N]: `)
+        process.stdout.write(`\n${C.orange}Run:${C.reset} ${cmd}\n`)
         const answer = await new Promise<string>((resolve) => {
-          rl.question('', resolve)
+          rl.question(`${C.dim}Allow? [y/N]:${C.reset} `, resolve)
         })
         const allowed = /^y|yes$/i.test(answer.trim())
         let toolResultText: string
         if (allowed) {
           const runRes = await runCommand(cmd)
           toolResultText = runRes.ok ? runRes.stdout || '(no output)' : runRes.stderr || 'Command failed'
+          const out = runRes.stdout?.trim() || ''
+          const err = runRes.stderr?.trim() || ''
+          if (out || err) {
+            process.stdout.write(`${C.dim}Output:\n${C.reset}${out || err}\n`)
+          } else if (runRes.ok) {
+            process.stdout.write(`${C.dim}(command completed, no output)${C.reset}\n`)
+          }
         } else {
           toolResultText = 'User denied the command.'
         }
-        result = await ollamaChatContinue(result.continueState!, toolResultText)
+        streamedThisTurn = false
+        const continueState = result.continueState as { backend?: string }
+        result =
+          continueState?.backend === 'openclaw'
+            ? await openclawChatContinue(continueState as Parameters<typeof openclawChatContinue>[0], toolResultText)
+            : await ollamaChatContinue(result.continueState!, toolResultText)
       }
 
       if (!result.success) {
+        process.stdout.write('\n')
         console.log('Error:', result.error)
       } else if (result.contents?.length) {
-        for (const c of result.contents) {
-          if (c) printAgentReply(c)
+        if (streamedThisTurn) {
+          process.stdout.write('\n')
+          const last = result.contents[result.contents.length - 1]
+          if (last) {
+            const { buttons } = parseReplyButtons(last)
+            if (buttons.length > 0) {
+              const parts = buttons.map((b, i) => `  ${C.cyan}[${i + 1}]${C.reset} ${b}`).join('  ')
+              process.stdout.write(parts + '\n')
+            }
+            messages.push({ role: 'assistant', content: last })
+          }
+        } else {
+          for (const c of result.contents) {
+            if (c) printAgentReply(c)
+          }
+          const last = result.contents[result.contents.length - 1]
+          if (last) messages.push({ role: 'assistant', content: last })
         }
-        const last = result.contents[result.contents.length - 1]
-        if (last) messages.push({ role: 'assistant', content: last })
       }
       process.stdout.write('\n')
       ask()

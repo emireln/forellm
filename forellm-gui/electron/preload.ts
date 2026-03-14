@@ -14,6 +14,8 @@ export interface ForellmAPI {
     maxContext?: number
     limit?: number
     sort?: string
+    /** Include all models including TooTight (default true for full Model Explorer list) */
+    fitAll?: boolean
   }) => Promise<unknown>
   getRecommend: (opts?: {
     limit?: number
@@ -69,6 +71,42 @@ export interface ForellmAPI {
     continueState?: unknown
   }>
   listOllamaModels: () => Promise<{ success: boolean; models?: string[]; error?: string }>
+  /** OpenClaw backend (OpenAI-compatible). baseUrl optional (default from env OPENCLAW_BASE_URL or 127.0.0.1:18789). */
+  listOpenClawModels: (baseUrl?: string) => Promise<{ success: boolean; models?: string[]; error?: string }>
+  chatOpenClaw: (
+    baseUrl: string | undefined,
+    model: string,
+    messages: Array<{ role: string; content: string }>,
+    tools?: Array<{ type: string; function: { name: string; description: string; parameters?: object } }>
+  ) => Promise<{
+    success: boolean
+    content?: string
+    contents?: string[]
+    error?: string
+    pendingCommand?: { command: string }
+    continueState?: unknown
+  }>
+  chatOpenClawContinue: (continueState: unknown, toolResult: string) => Promise<{
+    success: boolean
+    content?: string
+    contents?: string[]
+    error?: string
+    pendingCommand?: { command: string }
+    continueState?: unknown
+  }>
+  chatOpenClawStream: (
+    baseUrl: string | undefined,
+    model: string,
+    messages: Array<{ role: string; content: string }>,
+    tools?: Array<{ type: string; function: { name: string; description: string; parameters?: object } }>
+  ) => Promise<{
+    success: boolean
+    content?: string
+    contents?: string[]
+    error?: string
+    pendingCommand?: { command: string }
+    continueState?: unknown
+  }>
   agentUploadFile: (payload: { buffer: ArrayBuffer; name: string; mime?: string }) => Promise<{ success: boolean; fileId?: string; error?: string }>
   agentReadDocument: (fileId: string) => Promise<{ success: boolean; content?: string; error?: string }>
   agentWebSearch: (query: string) => Promise<{ success: boolean; content?: string; error?: string }>
@@ -100,6 +138,10 @@ const api: ForellmAPI = {
   },
   chatOllamaStream: (model, messages, tools) => ipcRenderer.invoke('ollama:chatStream', model, messages, tools),
   listOllamaModels: () => ipcRenderer.invoke('ollama:listModels'),
+  listOpenClawModels: (baseUrl?: string) => ipcRenderer.invoke('openclaw:listModels', baseUrl),
+  chatOpenClaw: (baseUrl, model, messages, tools) => ipcRenderer.invoke('openclaw:chat', baseUrl, model, messages, tools),
+  chatOpenClawContinue: (continueState, toolResult) => ipcRenderer.invoke('openclaw:chatContinue', continueState, toolResult),
+  chatOpenClawStream: (baseUrl, model, messages, tools) => ipcRenderer.invoke('openclaw:chatStream', baseUrl, model, messages, tools),
   agentUploadFile: (payload) => ipcRenderer.invoke('agent:uploadFile', payload),
   agentReadDocument: (fileId) => ipcRenderer.invoke('agent:readDocument', fileId),
   agentWebSearch: (query) => ipcRenderer.invoke('agent:webSearch', query),

@@ -259,9 +259,9 @@ npm run dev
 
 - **System telemetry** — Gauges for RAM, VRAM, and CPU cores from `forellm system --json`
 - **What-If simulator** — Override VRAM (e.g. "RTX 4090", "A100 80GB") and recalculate fit scores via `forellm fit --memory XG`
-- **Model Explorer** — Sortable table with Fit badges, quantization matrix, and context slider (2k–128k). Per-row actions: copy run command, download (runs `forellm download`), and add to cart.
+- **Model Explorer** — Full model list (569+; all fit levels including TooTight). Sortable table with Fit badges, quantization matrix, and context slider (2k–128k). Per-row actions: copy run command, download (runs `forellm download`), and add to cart.
 - **Multi-model cart** — Add several models (LLM + embedding + etc.) and see cumulative VRAM/RAM usage vs effective hardware.
-- **Agent Fore** — AI chat tab powered by Ollama. Real-time streaming (token-by-token typing), multiple agents (General, Data Analyst, Web Researcher, Coding Expert), and tools: read attached files (JSON, CSV, TXT, etc.), run Python snippets, web search, and run terminal commands with your confirmation (Allow/Deny). Attach files by drag-and-drop; the agent sees your system specs and the full ForeLLM model list. Agent questions can show reply buttons (Yes/No or custom). Requires Ollama running locally.
+- **Agent Fore** — AI chat tab powered by Ollama (or OpenClaw). Real-time streaming, multiple agents (General, Data Analyst, Web Researcher, Coding Expert), and tools: read attached files (JSON, CSV, TXT, SVG), **analyze images** (PNG, JPEG, GIF, WebP via a vision model e.g. llava), run Python snippets, web search, and run terminal commands with your confirmation (Allow/Deny). Attach files by drag-and-drop; the agent sees your system specs and the full ForeLLM model list. Commands like `forellm system --json` are resolved to the binary path when not on PATH. Reply buttons (Yes/No or custom) supported. Requires Ollama (or OpenClaw) running locally.
 
 **Agent Fore CLI** — The same Agent Fore chat in the terminal. See [Using Agent Fore from the CLI](#using-agent-fore-from-the-cli) below.
 
@@ -297,7 +297,7 @@ Or: `npx tsx cli/agent-cli.ts`
 |--------|-------------|
 | `--model <name>` | Force this Ollama model (otherwise auto-detect from running or available). |
 | `--agent <id>` | Agent: `general`, `data`, `web`, or `coding` (default: `general`). |
-| `--file <path>` | Attach a file; repeat to attach multiple. The agent can read them via `read_document`. |
+| `--file <path>` | Attach a file; repeat to attach multiple. The agent can read them via `read_document` (text/SVG) or analyze images (PNG, JPEG, etc.) via `analyze_image`. |
 
 **Examples**
 

@@ -48,12 +48,106 @@ function agentReadDocument(fileId: string): { success: boolean; content?: string
   }
 }
 
+const IMAGE_MIMES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'])
+const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp'])
+
+async function agentAnalyzeImage(fileId: string): Promise<{ success: boolean; content?: string; error?: string }> {
+  try {
+    const entry = fileStore.get(fileId)
+    if (!entry) return { success: false, error: 'File not found' }
+    const mime = (entry.mime || '').toLowerCase()
+    const ext = path.extname(entry.name).toLowerCase()
+    const isImage = IMAGE_MIMES.has(mime) || IMAGE_EXT.has(ext)
+    if (!isImage) return { success: false, error: 'Not an image file. Use read_document for text/SVG.' }
+    const buf = readFileSync(entry.path)
+    const base64 = buf.toString('base64')
+    const visionModel = process.env.OLLAMA_VISION_MODEL ?? 'llava'
+    const res = await fetch(`${OLLAMA_BASE}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: visionModel,
+        messages: [{ role: 'user', content: 'Describe this image in detail. Include any text, objects, colors, and context that would help the user.' }],
+        stream: false,
+        images: [base64]
+      })
+    })
+    if (!res.ok) {
+      const t = await res.text()
+      return { success: false, error: t || `Ollama ${res.status}. Ensure a vision model is available (e.g. ollama pull llava).` }
+    }
+    const data = (await res.json()) as { message?: { content?: string }; error?: string }
+    if (data.error) return { success: false, error: data.error }
+    const content = data.message?.content?.trim()
+    return content ? { success: true, content } : { success: false, error: 'No description returned' }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
 const PENDING_COMMAND_PREFIX = '__PENDING_COMMAND__:'
 
+const OLLAMA_BASE = process.env.OLLAMA_BASE_URL ?? 'http://127.0.0.1:11434'
+const OPENCLAW_BASE = process.env.OPENCLAW_BASE_URL ?? 'http://127.0.0.1:18789'
+const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN ?? ''
+
+/** Convert our chat messages + tools to OpenAI format for OpenClaw /v1/chat/completions. */
+function toOpenAIMessages(messages: Array<{ role: string; content?: string; tool_calls?: unknown[]; tool_name?: string; tool_call_id?: string }>): Array<{ role: string; content?: string; tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }>; tool_call_id?: string }> {
+  const out: Array<{ role: string; content?: string; tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }>; tool_call_id?: string }> = []
+  let lastToolCallIds: string[] = []
+  for (const m of messages) {
+    if (m.role === 'system' || m.role === 'user') {
+      out.push({ role: m.role, content: m.content ?? '' })
+      lastToolCallIds = []
+      continue
+    }
+    if (m.role === 'assistant') {
+      const toolCalls = m.tool_calls as Array<{ id?: string; function?: { name?: string; arguments?: string } }> | undefined
+      const openaiMsg: { role: string; content?: string; tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }> } = {
+        role: 'assistant',
+        content: (m.content ?? '').trim() || undefined
+      }
+      if (Array.isArray(toolCalls) && toolCalls.length > 0) {
+        lastToolCallIds = toolCalls.map((tc) => tc.id ?? `call_${randomUUID()}`)
+        openaiMsg.tool_calls = toolCalls.map((tc) => ({
+          id: tc.id ?? lastToolCallIds[lastToolCallIds.length - 1],
+          type: 'function',
+          function: {
+            name: tc.function?.name ?? '',
+            arguments: typeof tc.function?.arguments === 'string' ? tc.function.arguments : JSON.stringify(tc.function?.arguments ?? {})
+          }
+        }))
+      } else {
+        lastToolCallIds = []
+      }
+      out.push(openaiMsg)
+      continue
+    }
+    if (m.role === 'tool') {
+      const id = (m as { tool_call_id?: string }).tool_call_id ?? (lastToolCallIds.length > 0 ? lastToolCallIds.shift()! : `call_${randomUUID()}`)
+      out.push({ role: 'tool', tool_call_id: id, content: (m as { content?: string }).content ?? '' })
+    }
+  }
+  return out
+}
+
+/** Convert our tool schemas to OpenAI format. */
+function toOpenAITools(tools: Array<{ type: string; function: { name: string; description: string; parameters?: object } }>): unknown[] {
+  return tools.map((t) => ({
+    type: 'function' as const,
+    function: {
+      name: t.function.name,
+      description: t.function.description,
+      parameters: t.function.parameters ?? { type: 'object', properties: {} }
+    }
+  }))
+}
+
 async function agentRunCommand(command: string): Promise<{ success: boolean; stdout?: string; stderr?: string; error?: string }> {
+  const resolvedCommand = resolveForellmInCommand(command)
   return new Promise((resolve) => {
     const shellCmd = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh'
-    const args = process.platform === 'win32' ? ['/c', command] : ['-c', command]
+    const args = process.platform === 'win32' ? ['/c', resolvedCommand] : ['-c', resolvedCommand]
     const proc = spawn(shellCmd, args, {
       cwd: process.cwd(),
       timeout: 60_000,
@@ -125,6 +219,16 @@ function findBinary(): string {
   }
 
   return `forellm${ext}`
+}
+
+/** If command is "forellm ..." or "forellm.exe ...", replace with full binary path when not on PATH. */
+function resolveForellmInCommand(cmd: string): string {
+  const binary = findBinary()
+  if (!path.isAbsolute(binary)) return cmd
+  const trimmed = cmd.trim()
+  if (trimmed === 'forellm' || trimmed.startsWith('forellm ')) return binary + trimmed.slice(7)
+  if (trimmed === 'forellm.exe' || trimmed.startsWith('forellm.exe ')) return binary + trimmed.slice(11)
+  return cmd
 }
 
 function execForellm(args: string[]): Promise<unknown> {
@@ -253,6 +357,8 @@ function registerIpc(): void {
         maxContext?: number
         limit?: number
         sort?: string
+        /** If true, include all models (including TooTight). Default true so Model Explorer shows full list. */
+        fitAll?: boolean
       }
     ) => {
       const args: string[] = []
@@ -261,6 +367,8 @@ function registerIpc(): void {
       if (opts?.cores != null && opts.cores > 0) args.push('--cores', String(opts.cores))
       if (opts?.maxContext) args.push('--max-context', String(opts.maxContext))
       args.push('fit', '--json', '--all')
+      // Include all fit levels (including TooTight) so Model Explorer shows full model list (e.g. 569, not just runnable 400)
+      if (opts?.fitAll !== false) args.push('--fit', 'all')
       if (opts?.limit) args.push('-n', String(opts.limit))
       if (opts?.sort) args.push('--sort', opts.sort)
       return execForellm(args)
@@ -331,6 +439,10 @@ function registerIpc(): void {
       const r = await agentReadDocument(String(args.file_id ?? ''))
       return r.success ? (r.content ?? '') : (r.error ?? 'Read document failed')
     }
+    if (name === 'analyze_image') {
+      const r = await agentAnalyzeImage(String(args.file_id ?? ''))
+      return r.success ? (r.content ?? '') : (r.error ?? 'Image analysis failed')
+    }
     if (name === 'execute_python') {
       const r = await agentExecutePython(String(args.code ?? ''))
       if (!r.success) return r.error ?? 'Execution failed'
@@ -370,10 +482,31 @@ function registerIpc(): void {
     return null
   }
 
-  /** Parse echoed tool calls from model content (e.g. "tool_call_name read_document tool_call_arguments {...}" or "read_document {...}"). */
+  /** Parse echoed tool calls from model content (e.g. "tool_call_name read_document tool_call_arguments {...}", "read_document {...}", or "<run_command>forellm fit ...</run_command>"). */
   function parseEchoedToolCalls(content: string): Array<{ name: string; arguments: string }> {
     const results: Array<{ name: string; arguments: string }> = []
-    const toolNames = ['read_document', 'web_search', 'execute_python', 'run_command']
+    const toolNames = ['read_document', 'web_search', 'execute_python', 'run_command', 'analyze_image']
+
+    // Fallback: <run_command>forellm fit --json --perfect</run_command> (model echoed command as text instead of tool call)
+    const runCommandTagRe = /<run_command>([\s\S]*?)<\/run_command>/gi
+    let runM: RegExpExecArray | null
+    while ((runM = runCommandTagRe.exec(content)) !== null) {
+      const cmd = runM[1].trim()
+      if (cmd) results.push({ name: 'run_command', arguments: JSON.stringify({ command: cmd }) })
+    }
+
+    // Fallback: <read_document>file_id</read_document> (model said it would read but echoed as text instead of tool call)
+    const readDocTagRe = /<read_document>([\s\S]*?)<\/read_document>/gi
+    while ((runM = readDocTagRe.exec(content)) !== null) {
+      const fileId = runM[1].trim()
+      if (fileId) results.push({ name: 'read_document', arguments: JSON.stringify({ file_id: fileId }) })
+    }
+    // Fallback: <analyze_image>file_id</analyze_image> (model said it would analyze image but echoed as text)
+    const analyzeImageTagRe = /<analyze_image>([\s\S]*?)<\/analyze_image>/gi
+    while ((runM = analyzeImageTagRe.exec(content)) !== null) {
+      const fileId = runM[1].trim()
+      if (fileId) results.push({ name: 'analyze_image', arguments: JSON.stringify({ file_id: fileId }) })
+    }
 
     // Pattern 1: tool_call_name X tool_call_arguments { ... }
     const longRe = /tool_call_name\s+(\w+)\s+tool_call_arguments\s+/gi
@@ -437,7 +570,7 @@ function registerIpc(): void {
           }
           if (toolSchemas) body.tools = toolSchemas
 
-          const res = await fetch('http://127.0.0.1:11434/api/chat', {
+          const res = await fetch(`${OLLAMA_BASE}/api/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -611,7 +744,7 @@ function registerIpc(): void {
           }
           if (toolSchemas) body.tools = toolSchemas
 
-          const res = await fetch('http://127.0.0.1:11434/api/chat', {
+          const res = await fetch(`${OLLAMA_BASE}/api/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -738,7 +871,7 @@ function registerIpc(): void {
           stream: false
         }
         if (toolSchemas) body.tools = toolSchemas
-        const res = await fetch('http://127.0.0.1:11434/api/chat', {
+        const res = await fetch(`${OLLAMA_BASE}/api/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
@@ -807,7 +940,7 @@ function registerIpc(): void {
     'ollama:listModels',
     async (): Promise<{ success: boolean; models?: string[]; error?: string }> => {
       try {
-        const res = await fetch('http://127.0.0.1:11434/api/tags')
+        const res = await fetch(`${OLLAMA_BASE}/api/tags`)
         if (!res.ok) return { success: false, error: `Ollama ${res.status}` }
         const data = (await res.json()) as { models?: Array<{ name: string }> }
         const names = (data.models ?? []).map((m) => m.name)
@@ -815,6 +948,302 @@ function registerIpc(): void {
       } catch (err) {
         return { success: false, error: err instanceof Error ? err.message : String(err) }
       }
+    }
+  )
+
+  /** OpenClaw: list models (GET /v1/models). Fallback to ["openclaw"] if endpoint missing. */
+  ipcMain.handle(
+    'openclaw:listModels',
+    async (_, baseUrl?: string): Promise<{ success: boolean; models?: string[]; error?: string }> => {
+      const base = (baseUrl || OPENCLAW_BASE).replace(/\/$/, '')
+      try {
+        const res = await fetch(`${base}/v1/models`, {
+          headers: OPENCLAW_TOKEN ? { Authorization: `Bearer ${OPENCLAW_TOKEN}` } : {}
+        })
+        if (!res.ok) {
+          return { success: true, models: ['openclaw'] }
+        }
+        const data = (await res.json()) as { data?: Array<{ id: string }> }
+        const names = (data.data ?? []).map((m) => m.id)
+        return { success: true, models: names.length > 0 ? names : ['openclaw'] }
+      } catch {
+        return { success: true, models: ['openclaw'] }
+      }
+    }
+  )
+
+  /** OpenClaw: chat with tool loop (OpenAI-compatible POST /v1/chat/completions). */
+  ipcMain.handle(
+    'openclaw:chat',
+    async (
+      _,
+      baseUrl: string | undefined,
+      model: string,
+      messages: Array<{ role: string; content?: string }>,
+      tools?: Array<{ type: string; function: { name: string; description: string; parameters?: object } }>
+    ): Promise<{
+      success: boolean
+      content?: string
+      contents?: string[]
+      error?: string
+      pendingCommand?: { command: string }
+      continueState?: { backend: 'openclaw'; baseUrl: string; model: string; messages: unknown[]; pendingToolCall: { id: string; name: string; arguments: string }; tools?: unknown }
+    }> => {
+      const base = (baseUrl || OPENCLAW_BASE).replace(/\/$/, '')
+      const maxRounds = 5
+      let currentMessages: unknown[] = [...messages]
+      const toolSchemas = tools && tools.length > 0 ? tools : undefined
+      const assistantContents: string[] = []
+
+      for (let round = 0; round < maxRounds; round++) {
+        try {
+          const body: { model: string; messages: unknown[]; stream: boolean; tools?: unknown } = {
+            model: model || 'openclaw',
+            messages: toOpenAIMessages(currentMessages as Array<{ role: string; content?: string; tool_calls?: unknown[]; tool_name?: string }>),
+            stream: false
+          }
+          if (toolSchemas) body.tools = toOpenAITools(toolSchemas)
+          const res = await fetch(`${base}/v1/chat/completions`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(OPENCLAW_TOKEN ? { Authorization: `Bearer ${OPENCLAW_TOKEN}` } : {}),
+              'x-openclaw-agent-id': 'main'
+            },
+            body: JSON.stringify(body)
+          })
+          if (!res.ok) {
+            const t = await res.text()
+            return { success: false, error: t || `OpenClaw ${res.status}` }
+          }
+          const data = (await res.json()) as {
+            choices?: Array<{ message?: { content?: string; tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }> } }>
+            error?: { message?: string }
+          }
+          if (data.error?.message) return { success: false, error: data.error.message }
+          const msg = data.choices?.[0]?.message
+          if (!msg) return { success: false, error: 'No message in OpenClaw response' }
+          const content = (msg.content ?? '').trim()
+          if (content) assistantContents.push(content)
+          const toolCalls = msg.tool_calls ?? []
+          if (toolCalls.length === 0) {
+            return assistantContents.length > 0 ? { success: true, contents: assistantContents } : { success: true, content: '' }
+          }
+          currentMessages.push({
+            role: 'assistant',
+            content: msg.content ?? '',
+            tool_calls: toolCalls.map((tc) => ({ id: tc.id, function: { name: tc.function.name, arguments: tc.function.arguments } }))
+          })
+          for (const tc of toolCalls) {
+            const name = tc.function.name
+            const argsStr = tc.function.arguments ?? '{}'
+            const result = await runAgentTool(name, argsStr)
+            if (result.startsWith(PENDING_COMMAND_PREFIX)) {
+              let command = ''
+              try {
+                command = (JSON.parse(result.slice(PENDING_COMMAND_PREFIX.length)) as { command?: string }).command ?? ''
+              } catch {
+                command = ''
+              }
+              return {
+                success: true,
+                contents: assistantContents.length > 0 ? assistantContents : undefined,
+                content: assistantContents[assistantContents.length - 1],
+                pendingCommand: { command },
+                continueState: {
+                  backend: 'openclaw',
+                  baseUrl: base,
+                  model: model || 'openclaw',
+                  messages: currentMessages,
+                  pendingToolCall: { id: tc.id, name, arguments: argsStr },
+                  tools: toolSchemas
+                }
+              }
+            }
+            currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: result })
+          }
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err)
+          return { success: false, error: errMsg }
+        }
+      }
+      return assistantContents.length > 0 ? { success: true, contents: assistantContents } : { success: false, error: 'OpenClaw tool loop exceeded' }
+    }
+  )
+
+  /** OpenClaw: continue after run_command confirm (inject tool result, one more round). */
+  ipcMain.handle(
+    'openclaw:chatContinue',
+    async (
+      _,
+      continueState: { backend: 'openclaw'; baseUrl: string; model: string; messages: unknown[]; pendingToolCall: { id: string; name: string; arguments: string }; tools?: unknown },
+      toolResult: string
+    ): Promise<{ success: boolean; content?: string; contents?: string[]; error?: string; pendingCommand?: { command: string }; continueState?: unknown }> => {
+      const { baseUrl, model, messages, pendingToolCall, tools: toolSchemas } = continueState
+      const base = baseUrl.replace(/\/$/, '')
+      const currentMessages = [...messages] as Array<{ role: string; content?: string; tool_calls?: unknown[]; tool_name?: string }>
+      currentMessages.push({ role: 'tool', tool_call_id: pendingToolCall.id, content: toolResult } as unknown as { role: string; content?: string; tool_calls?: unknown[]; tool_name?: string })
+      try {
+        const body: { model: string; messages: unknown[]; stream: boolean; tools?: unknown } = {
+          model: model || 'openclaw',
+          messages: toOpenAIMessages(currentMessages),
+          stream: false
+        }
+        if (toolSchemas) body.tools = toOpenAITools(toolSchemas as Array<{ type: string; function: { name: string; description: string; parameters?: object } }>)
+        const res = await fetch(`${base}/v1/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(OPENCLAW_TOKEN ? { Authorization: `Bearer ${OPENCLAW_TOKEN}` } : {}),
+            'x-openclaw-agent-id': 'main'
+          },
+          body: JSON.stringify(body)
+        })
+        if (!res.ok) {
+          const t = await res.text()
+          return { success: false, error: t || `OpenClaw ${res.status}` }
+        }
+        const data = (await res.json()) as {
+          choices?: Array<{ message?: { content?: string; tool_calls?: unknown[] } }>
+        }
+        const msg = data.choices?.[0]?.message
+        if (!msg) return { success: false, error: 'No message in OpenClaw response' }
+        const content = (msg.content ?? '').trim()
+        return { success: true, contents: content ? [content] : [] }
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err)
+        return { success: false, error: errMsg }
+      }
+    }
+  )
+
+  /** OpenClaw: streaming chat (SSE). Sends agent:streamDelta; same result shape as openclaw:chat. */
+  ipcMain.handle(
+    'openclaw:chatStream',
+    async (
+      event: Electron.IpcMainInvokeEvent,
+      baseUrl: string | undefined,
+      model: string,
+      messages: Array<{ role: string; content: string }>,
+      tools?: Array<{ type: string; function: { name: string; description: string; parameters?: object } }>
+    ): Promise<{ success: boolean; content?: string; contents?: string[]; error?: string; pendingCommand?: { command: string }; continueState?: unknown }> => {
+      const sender = event.sender
+      const base = (baseUrl || OPENCLAW_BASE).replace(/\/$/, '')
+      const sendDelta = (delta: string, done: boolean, startNewMessage: boolean) => {
+        sender.send('agent:streamDelta', { delta, done, startNewMessage })
+      }
+      const maxRounds = 5
+      let currentMessages: unknown[] = [...messages]
+      const toolSchemas = tools && tools.length > 0 ? tools : undefined
+      const assistantContents: string[] = []
+
+      for (let round = 0; round < maxRounds; round++) {
+        try {
+          const body: { model: string; messages: unknown[]; stream: boolean; tools?: unknown } = {
+            model: model || 'openclaw',
+            messages: toOpenAIMessages(currentMessages as Array<{ role: string; content?: string; tool_calls?: unknown[]; tool_name?: string }>),
+            stream: true
+          }
+          if (toolSchemas) body.tools = toOpenAITools(toolSchemas)
+          const res = await fetch(`${base}/v1/chat/completions`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(OPENCLAW_TOKEN ? { Authorization: `Bearer ${OPENCLAW_TOKEN}` } : {}),
+              'x-openclaw-agent-id': 'main'
+            },
+            body: JSON.stringify(body)
+          })
+          if (!res.ok) {
+            const t = await res.text()
+            return { success: false, error: t || `OpenClaw ${res.status}` }
+          }
+          const reader = res.body?.getReader()
+          const decoder = new TextDecoder()
+          if (!reader) return { success: false, error: 'No response body' }
+          let buffer = ''
+          let fullContent = ''
+          const accumulatedToolCalls: Array<{ id: string; function: { name: string; arguments: string } }> = []
+
+          while (true) {
+            const { done: streamDone, value } = await reader.read()
+            if (streamDone) break
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split('\n')
+            buffer = lines.pop() ?? ''
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const payload = line.slice(6).trim()
+                if (payload === '[DONE]') continue
+                try {
+                  const data = JSON.parse(payload) as {
+                    choices?: Array<{ delta?: { content?: string; tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> } }>
+                  }
+                  const delta = data.choices?.[0]?.delta
+                  if (delta?.content) {
+                    fullContent += delta.content
+                    sendDelta(delta.content, false, false)
+                  }
+                  if (delta?.tool_calls?.length) {
+                    for (const tc of delta.tool_calls) {
+                      const i = tc.index ?? accumulatedToolCalls.length
+                      if (!accumulatedToolCalls[i]) accumulatedToolCalls[i] = { id: tc.id ?? `call_${randomUUID()}`, function: { name: '', arguments: '' } }
+                      if (tc.function?.name) accumulatedToolCalls[i].function.name = tc.function.name
+                      if (tc.function?.arguments != null) accumulatedToolCalls[i].function.arguments += tc.function.arguments
+                    }
+                  }
+                } catch {
+                  //
+                }
+              }
+            }
+          }
+          sendDelta('', true, false)
+          const content = fullContent.trim()
+          if (content) assistantContents.push(content)
+          const toolCalls = accumulatedToolCalls.filter((tc) => tc.function.name)
+
+          if (toolCalls.length === 0) {
+            return assistantContents.length > 0 ? { success: true, contents: assistantContents } : { success: true, content: '' }
+          }
+          currentMessages.push({
+            role: 'assistant',
+            content: fullContent || '',
+            tool_calls: toolCalls.map((tc) => ({ id: tc.id, function: { name: tc.function.name, arguments: tc.function.arguments } }))
+          })
+          sender.send('agent:streamDelta', { delta: '', done: true, startNewMessage: true })
+          for (const tc of toolCalls) {
+            const result = await runAgentTool(tc.function.name, tc.function.arguments ?? '{}')
+            if (result.startsWith(PENDING_COMMAND_PREFIX)) {
+              let command = ''
+              try {
+                command = (JSON.parse(result.slice(PENDING_COMMAND_PREFIX.length)) as { command?: string }).command ?? ''
+              } catch {
+                command = ''
+              }
+              return {
+                success: true,
+                contents: assistantContents.length > 0 ? assistantContents : undefined,
+                content: assistantContents[assistantContents.length - 1],
+                pendingCommand: { command },
+                continueState: {
+                  backend: 'openclaw',
+                  baseUrl: base,
+                  model: model || 'openclaw',
+                  messages: currentMessages,
+                  pendingToolCall: { id: tc.id, name: tc.function.name, arguments: tc.function.arguments ?? '{}' },
+                  tools: toolSchemas
+                }
+              }
+            }
+            currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: result })
+          }
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err)
+          return { success: false, error: errMsg }
+        }
+      }
+      return assistantContents.length > 0 ? { success: true, contents: assistantContents } : { success: false, error: 'OpenClaw tool loop exceeded' }
     }
   )
 

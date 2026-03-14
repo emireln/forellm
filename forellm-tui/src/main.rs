@@ -205,6 +205,7 @@ EXIT CODES:
 AGENT USAGE:
   forellm fit --json
   forellm fit --json --perfect -n 5
+  forellm fit --json --fit good -n 10
   forellm fit --json --sort tps
 
   JSON output fields: { system: {...}, models: [{ name, provider,
@@ -212,9 +213,13 @@ AGENT USAGE:
   estimated_tps, memory_required_gb, memory_available_gb,
   utilization_pct, best_quant, use_case, runtime }] }")]
     Fit {
-        /// Show only models that perfectly match recommended specs
+        /// Show only models that perfectly match recommended specs (same as --fit perfect)
         #[arg(short, long)]
         perfect: bool,
+
+        /// Filter by fit level: perfect, good, marginal, tight, runnable (default), all
+        #[arg(long, value_enum)]
+        fit: Option<FitArg>,
 
         /// Limit number of results
         #[arg(short = 'n', long)]
@@ -628,7 +633,8 @@ fn resolve_context_limit(max_context: Option<u32>) -> Option<u32> {
 }
 
 fn run_fit(
-    perfect: bool,
+    _perfect: bool,
+    fit_filter: FitArg,
     limit: Option<usize>,
     all: bool,
     sort: SortColumn,
@@ -659,9 +665,7 @@ fn run_fit(
         .map(|m| ModelFit::analyze_with_context_limit(m, &specs, context_limit))
         .collect();
 
-    if perfect {
-        fits.retain(|f| f.fit_level == forellm_core::fit::FitLevel::Perfect);
-    }
+    fits.retain(|f| fit_matches_filter(f, fit_filter));
 
     fits = forellm_core::fit::rank_models_by_fit_opts_col(fits, false, sort);
 
@@ -1363,12 +1367,19 @@ fn main() {
 
             Commands::Fit {
                 perfect,
+                fit,
                 limit,
                 all,
                 sort,
             } => {
+                let fit_filter = if *perfect {
+                    FitArg::Perfect
+                } else {
+                    fit.unwrap_or(FitArg::Runnable)
+                };
                 run_fit(
                     *perfect,
+                    fit_filter,
                     *limit,
                     *all,
                     (*sort).into(),
@@ -1505,8 +1516,14 @@ fn main() {
 
     // If --cli flag, use classic fit output
     if cli.cli {
+        let fit_filter = if cli.perfect {
+            FitArg::Perfect
+        } else {
+            FitArg::Runnable
+        };
         run_fit(
             cli.perfect,
+            fit_filter,
             cli.limit,
             cli.all,
             cli.sort.into(),
