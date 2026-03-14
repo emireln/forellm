@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react'
 import type { SystemData, FitData, ModelFit, CartItem, HardwareOverride } from '../lib/types'
-import { HardwarePanel } from './HardwarePanel'
 import { ModelExplorer } from './ModelExplorer'
 import { AgentFore } from './AgentFore'
 import { MultiModelCart } from './MultiModelCart'
 import { Documentation } from './Documentation'
-import { RefreshCw, Minus, Square, X, PanelLeftClose, PanelLeftOpen, BookOpen, Layers, Bot } from 'lucide-react'
+import { RefreshCw, Minus, Square, X, BookOpen, Layers, Bot } from 'lucide-react'
 import type { SystemInfo } from '../lib/types'
 
 type MainView = 'explorer' | 'agent'
 
-/** Effective hardware for cart/simulator: from override or detected system. */
+/** Effective hardware for cart: from override or detected system. */
 function getEffectiveHardware(
   system: SystemInfo | null,
   hardwareOverride: HardwareOverride | null
@@ -79,7 +78,6 @@ export function Dashboard({
   onRefresh
 }: Props) {
   const [isMaximized, setIsMaximized] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [docsOpen, setDocsOpen] = useState(false)
   const [mainView, setMainView] = useState<MainView>('explorer')
 
@@ -102,11 +100,6 @@ export function Dashboard({
           <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[10px] text-emerald-400">
             v0.32.2026
           </span>
-          {simulating && (
-            <span className="ml-2 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
-              SIMULATED
-            </span>
-          )}
         </div>
         <div className="flex items-center gap-0.5 [-webkit-app-region:no-drag]">
           <button
@@ -157,57 +150,9 @@ export function Dashboard({
         </div>
       </header>
 
-      {/* Main layout: flex so sidebar width can transition smoothly (no grid) */}
+      {/* Main layout */}
       <div className="flex min-h-0 flex-1 flex-col gap-px bg-zinc-800/50">
         <div className="flex min-h-0 flex-1">
-          {/* Left sidebar — animate width only for smooth collapse/expand */}
-          <div
-            className="flex shrink-0 flex-col overflow-hidden border-r border-zinc-800/60 bg-zinc-950/95"
-            style={{ width: sidebarCollapsed ? 52 : 260 }}
-          >
-            {sidebarCollapsed ? (
-            <>
-              <div className="min-h-0 flex-1" />
-              <div className="shrink-0 border-t border-zinc-800/60 px-2 py-2">
-                <button
-                  type="button"
-                  onClick={() => setSidebarCollapsed(false)}
-                  className="flex w-full items-center justify-center rounded-md py-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
-                  title="Expand hardware"
-                >
-                  <PanelLeftOpen className="h-4 w-4" />
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-3 py-4 scrollbar-thin">
-                <HardwarePanel
-                  system={systemData?.system ?? fitData?.system ?? null}
-                  loading={loading}
-                  models={fitData?.models ?? []}
-                  contextLength={contextLength}
-                  hardwareOverride={hardwareOverride}
-                  runnableCountDetected={runnableCountDetected}
-                  onSimulate={onSimulate}
-                  onContextChange={onContextChange}
-                />
-              </div>
-              <div className="shrink-0 border-t border-zinc-800/60 px-2 py-2">
-                <button
-                  type="button"
-                  onClick={() => setSidebarCollapsed(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-md py-2 text-xs text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
-                  title="Collapse sidebar"
-                >
-                  <PanelLeftClose className="h-4 w-4" />
-                  <span>Collapse</span>
-                </button>
-              </div>
-            </>
-            )}
-          </div>
-
           {/* Main content: Model Explorer or Agent Fore */}
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-zinc-950">
             {/* Top bar: Model Explorer | Agent Fore */}

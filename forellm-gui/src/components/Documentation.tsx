@@ -39,7 +39,7 @@ export function Documentation({ onClose }: Props) {
               Overview
             </h2>
             <p className="leading-relaxed">
-              The GUI is a visual dashboard that runs the <strong className="text-zinc-200">forellm</strong> CLI under the hood. It shows system telemetry, lets you simulate different hardware (VRAM, RAM, CPU cores), browse and score models, and run download commands from inside the app.
+              The GUI is a visual dashboard that runs the <strong className="text-zinc-200">forellm</strong> CLI under the hood. It lets you browse and score models, add them to a cart, and run download commands from inside the app.
             </p>
             <p className="mt-2 leading-relaxed">
               <strong className="text-zinc-200">Tech:</strong> Electron (main process), React + Tailwind (renderer), IPC to invoke <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">forellm</code> for <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">system</code>, <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">fit</code>, and <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">download</code>.
@@ -70,37 +70,11 @@ npm run dev`}
             </h2>
             <ul className="space-y-1.5 text-zinc-400">
               <li><strong className="text-zinc-300">ForeLLM</strong> — App name and version badge.</li>
-              <li><strong className="text-zinc-300">SIMULATED</strong> — Shown when the What-If Simulator is active.</li>
               <li><strong className="text-zinc-300">Refresh</strong> — Re-runs hardware detection and fit; reloads the model list.</li>
               <li><strong className="text-zinc-300">Docs</strong> — Opens this documentation.</li>
               <li><strong className="text-zinc-300">Window controls</strong> — Minimize, Maximize/Restore, Close (Electron).</li>
             </ul>
             <p className="mt-2 text-zinc-500">The title bar is draggable for moving the window.</p>
-          </section>
-
-          <section className="mb-6">
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-              Sidebar
-            </h2>
-            <p className="mb-3 leading-relaxed text-zinc-400">
-              The left sidebar has two panels. It can be <strong className="text-zinc-300">collapsed</strong> to a narrow strip with an expand icon; <strong className="text-zinc-300">expand</strong> again to see full content. Collapse/expand is instant.
-            </p>
-
-            <h3 className="mb-1.5 font-medium text-zinc-200">1. System Telemetry</h3>
-            <ul className="mb-3 list-inside list-disc space-y-1 text-zinc-400">
-              <li><strong className="text-zinc-300">Gauges:</strong> RAM Used (cyan), VRAM (green), Cores (orange).</li>
-              <li><strong className="text-zinc-300">Spec list:</strong> CPU, RAM, GPU, VRAM, Backend, OS — each with an icon.</li>
-            </ul>
-            <p className="mb-3 text-zinc-500">Values reflect detected or simulated hardware when the simulator is active.</p>
-
-            <h3 className="mb-1.5 font-medium text-zinc-200">2. What-If Simulator</h3>
-            <ul className="list-inside list-disc space-y-1 text-zinc-400">
-              <li><strong className="text-zinc-300">GPU VRAM</strong> — Preset dropdown (e.g. RTX 4090, A100 80GB) or custom GB input.</li>
-              <li><strong className="text-zinc-300">System RAM (GB)</strong> — Number input for simulated total RAM.</li>
-              <li><strong className="text-zinc-300">CPU Cores</strong> — Number input for simulated core count.</li>
-              <li><strong className="text-zinc-300">Apply</strong> — Applies overrides; model list and scores refresh.</li>
-              <li><strong className="text-zinc-300">Reset</strong> — Clears override and reloads with detected hardware.</li>
-            </ul>
           </section>
 
           <section className="mb-6">
@@ -125,12 +99,12 @@ npm run dev`}
               <li><strong className="text-zinc-300">Expand row</strong> — Chevron shows quantization matrix and copy-run-command button.</li>
               <li><strong className="text-zinc-300">Copy</strong> — Copies the run command: <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">ollama run &lt;tag&gt;</code> or <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">forellm download "&lt;model&gt;"</code>. Shown only when the model fits (not TooTight).</li>
               <li><strong className="text-zinc-300">Download</strong> — Runs <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">forellm download</code> for that model. Disabled when the model does not fit (TooTight) or while a download is in progress. Only GGUF repos are supported.</li>
-              <li><strong className="text-zinc-300">Add to cart</strong> — Cart icon adds the model to the Multi-Model Cart to check combined memory vs effective hardware (VRAM, RAM, cores). Uses the same effective hardware as the What-If Simulator when active. Disabled when the model does not fit.</li>
+              <li><strong className="text-zinc-300">Add to cart</strong> — Cart icon adds the model to the Multi-Model Cart to check combined memory vs your hardware (VRAM, RAM, cores). Disabled when the model does not fit.</li>
             </ul>
-            <p className="mt-2 text-zinc-500">Fit badges (Perfect, Good, Marginal, TooTight) show how well the model fits current or simulated hardware.</p>
+            <p className="mt-2 text-zinc-500">Fit badges (Perfect, Good, Marginal, TooTight) show how well the model fits your hardware.</p>
 
             <h3 className="mb-1.5 mt-3 font-medium text-zinc-200">Multi-Model Cart</h3>
-            <p className="mb-2 text-zinc-400">Bottom bar: add models from the table to see total memory required vs <strong className="text-zinc-300">effective hardware</strong> (VRAM, RAM, CPU cores). When the What-If Simulator is active, the cart uses the same simulated values. Status: fits in VRAM, fits in RAM (CPU offload), or exceeds memory.</p>
+            <p className="mb-2 text-zinc-400">Bottom bar: add models from the table to see total memory required vs your detected hardware (VRAM, RAM, CPU cores). Status: fits in VRAM, fits in RAM (CPU offload), or exceeds memory.</p>
           </section>
 
           <section className="mb-6">
@@ -164,12 +138,9 @@ npm run dev`}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800">
-                  <tr><td className="px-3 py-2 font-medium text-zinc-200">System Telemetry</td><td className="px-3 py-2">Gauges (RAM, VRAM, Cores) and spec list (CPU, RAM, GPU, VRAM, Backend, OS).</td></tr>
-                  <tr><td className="px-3 py-2 font-medium text-zinc-200">What-If Simulator</td><td className="px-3 py-2">Override VRAM, RAM, CPU cores; Apply / Reset; model list and scores update.</td></tr>
-                  <tr><td className="px-3 py-2 font-medium text-zinc-200">Sidebar collapse</td><td className="px-3 py-2">Collapse to icon strip; expand to full sidebar. Instant.</td></tr>
                   <tr><td className="px-3 py-2 font-medium text-zinc-200">Model Explorer</td><td className="px-3 py-2">Search, context slider, sortable table, expand row. Actions per row: Copy (run command), Download (forellm download), Add to cart.</td></tr>
-                  <tr><td className="px-3 py-2 font-medium text-zinc-200">Multi-Model Cart</td><td className="px-3 py-2">Add models; see total memory vs effective VRAM/RAM/cores (same as simulator when active).</td></tr>
-                  <tr><td className="px-3 py-2 font-medium text-zinc-200">Refresh</td><td className="px-3 py-2">Reload system and fit data (respects simulator override).</td></tr>
+                  <tr><td className="px-3 py-2 font-medium text-zinc-200">Multi-Model Cart</td><td className="px-3 py-2">Add models; see total memory vs your VRAM/RAM/cores.</td></tr>
+                  <tr><td className="px-3 py-2 font-medium text-zinc-200">Refresh</td><td className="px-3 py-2">Reload system and fit data.</td></tr>
                   <tr><td className="px-3 py-2 font-medium text-zinc-200">Window controls</td><td className="px-3 py-2">Minimize, Maximize/Restore, Close (Electron).</td></tr>
                 </tbody>
               </table>

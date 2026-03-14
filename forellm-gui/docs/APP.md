@@ -6,7 +6,7 @@ This document describes the **Electron + React** desktop app in `forellm-gui/`: 
 
 ## Overview
 
-The GUI is a visual dashboard that runs the `forellm` CLI under the hood. It shows system telemetry, lets you simulate different hardware (VRAM, RAM, CPU cores), browse and score models, add them to a cart to check combined memory usage, and run download commands from inside the app.
+The GUI is a visual dashboard that runs the `forellm` CLI under the hood. It lets you browse and score models, add them to a cart to check combined memory usage, and run download commands from inside the app.
 
 **Tech:** Electron (main process), React + Tailwind (renderer), IPC to invoke `forellm` for `system`, `fit`, and `download`.
 
@@ -33,49 +33,16 @@ Production build: `npm run build` then run the packaged app (e.g. Electron build
 ## Title bar
 
 - **ForeLLM** — App name and version badge (e.g. `v0.1.2026`).
-- **SIMULATED** — Shown when the What-If Simulator is active (any hardware override applied).
-- **Refresh** — Re-runs hardware detection and fit; reloads the model list with current (or simulated) specs.
+- **Refresh** — Re-runs hardware detection and fit; reloads the model list.
 - **Window controls** (when running in Electron): Minimize, Maximize/Restore, Close.
 
 The title bar is draggable for moving the window (frameless window).
 
 ---
 
-## Sidebar
-
-The left sidebar has two main panels. It can be **collapsed** to a narrow strip with a single “expand” icon; **expand** again to see full content. Collapse/expand is instant (no animation).
-
-### 1. System Telemetry
-
-- **Header:** “System Telemetry” with icon.
-- **Gauges (3):**
-  - **RAM Used** — Cyan gauge: used system RAM vs total.
-  - **VRAM** — Green gauge: GPU VRAM (or unified memory on Apple Silicon).
-  - **Cores** — Orange gauge: CPU core count.
-- **Spec list:** CPU name, RAM (total/free), GPU name, VRAM (with “unified” if applicable), Backend, OS. Each row has an icon, label, and value.
-
-Values reflect **detected** hardware, or **simulated** hardware when the What-If Simulator is active.
-
-### 2. What-If Simulator
-
-- **Header:** “What-If Simulator” and an **ACTIVE** badge when any override is applied.
-- **Description:** Explains that you can build a virtual hardware profile and see updated fit/scores.
-- **Active hardware summary:** Current effective VRAM, RAM (GB), and Cores (from override or detected).
-- **GPU VRAM:**
-  - **Select GPU Preset** — Dropdown of presets (e.g. RTX 4090, A100 80GB, Apple M3 Max). Choosing one sets VRAM and applies the override.
-  - **Custom VRAM** — Number input (GB); use with **Apply**.
-- **System RAM (GB)** — Number input for total system RAM in the simulated profile.
-- **CPU Cores** — Number input for core count in the simulated profile.
-- **Apply** — Applies the current form values as a single hardware override (VRAM + RAM + Cores). Model list and scores refresh for the simulated system.
-- **Reset** — Clears the override and reloads with detected hardware.
-
-Only fields you change need to be filled; existing override values are kept for fields left blank when you click Apply. Reset clears everything.
-
----
-
 ## Model Explorer
 
-Main content area: sortable table of models and the “paste & download” bar.
+Main content area: sortable table of models and the paste & download bar.
 
 ### Toolbar (top)
 
@@ -106,7 +73,7 @@ Only **GGUF** repositories are supported. If the repo has no GGUF files, the err
 - **Add to cart** — Cart icon adds the model to the Multi-Model Cart (disabled if already in cart or fit is TooTight).
 - **Copy command** — Copy icon copies the run/download command to the clipboard.
 
-Fit badges (Perfect, Good, Marginal, TooTight) and colors indicate how well the model fits current (or simulated) hardware.
+Fit badges (Perfect, Good, Marginal, TooTight) and colors indicate how well the model fits your detected hardware.
 
 ---
 
@@ -158,13 +125,10 @@ Only repos that contain **GGUF** files work. Repos with only PyTorch/safetensors
 
 | Feature | Description |
 |--------|--------------|
-| **System Telemetry** | Gauges (RAM, VRAM, Cores) and spec list (CPU, RAM, GPU, VRAM, Backend, OS). |
-| **What-If Simulator** | Override VRAM (presets or custom), RAM (GB), CPU cores; Apply / Reset; model list and scores update. |
-| **Sidebar collapse** | Collapse to icon strip; expand to full sidebar. Instant. |
 | **Model Explorer** | Search, context slider, sortable table, expand row, add to cart, copy run/download command. |
 | **Paste & download** | Paste command or model ID; parse and run `forellm download`; result auto-dismisses after 7 s. |
 | **Multi-Model Cart** | Add models from table; see total VRAM and fit status; Clear. Empty state: cart icon only. |
-| **Refresh** | Reload system and fit data (respects current simulator override). |
+| **Refresh** | Reload system and fit data. |
 | **Window controls** | Minimize, Maximize/Restore, Close (Electron). |
 | **Agent Fore** | Ollama/OpenClaw chat tab: agents (General, Data Analyst, Web Researcher, Coding Expert), tools (read file, analyze image, web search, Python, run command with confirm). Image analysis uses a vision model (e.g. llava). CLI: `npm run agent` from `forellm-gui`. |
 
