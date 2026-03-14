@@ -108,7 +108,7 @@ npm run dev`}
               Model Explorer
             </h2>
             <p className="mb-3 leading-relaxed text-zinc-400">
-              Main content: sortable table of models and the paste-and-download bar.
+              Main content: sortable table of models with per-row actions (copy, download, add to cart).
             </p>
 
             <h3 className="mb-1.5 font-medium text-zinc-200">Toolbar</h3>
@@ -118,20 +118,14 @@ npm run dev`}
               <li><strong className="text-zinc-300">Context</strong> — Slider (2k–128k); affects memory and fit; data re-fetched with selected cap.</li>
             </ul>
 
-            <h3 className="mb-1.5 font-medium text-zinc-200">Paste & run download</h3>
-            <ul className="mb-3 list-inside list-disc space-y-1 text-zinc-400">
-              <li><strong className="text-zinc-300">Input</strong> — Paste a full command or model ID, e.g. <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">forellm download "Qwen/Qwen2-1.5B"</code> or <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">Qwen/Qwen2-1.5B</code>.</li>
-              <li><strong className="text-zinc-300">Download</strong> — Runs <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">forellm download</code>; supports <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">--quant</code>, <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">--list</code>.</li>
-              <li>Result (success or error) <strong className="text-zinc-300">auto-dismisses after 7 seconds</strong>. Only GGUF repos are supported.</li>
-            </ul>
-
-            <h3 className="mb-1.5 font-medium text-zinc-200">Model table</h3>
+            <h3 className="mb-1.5 font-medium text-zinc-200">Model table & Actions</h3>
             <ul className="list-inside list-disc space-y-1 text-zinc-400">
               <li><strong className="text-zinc-300">Columns:</strong> Expand, Model, Provider, Params, Quant, Mem Req, Score, Tok/s, Fit, Use Case, Actions.</li>
               <li><strong className="text-zinc-300">Sort</strong> — Click headers (Params, Mem Req, Score, Tok/s); click again to toggle order.</li>
               <li><strong className="text-zinc-300">Expand row</strong> — Chevron shows quantization matrix and copy-run-command button.</li>
-              <li><strong className="text-zinc-300">Add to cart</strong> — Cart icon adds the model to the Multi-Model Cart to check combined memory vs effective hardware (VRAM, RAM, cores). Uses the same effective hardware as the What-If Simulator when active.</li>
-              <li><strong className="text-zinc-300">Copy command</strong> — Copies <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">ollama run &lt;tag&gt;</code> or <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">forellm download "&lt;model&gt;"</code>.</li>
+              <li><strong className="text-zinc-300">Copy</strong> — Copies the run command: <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">ollama run &lt;tag&gt;</code> or <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">forellm download "&lt;model&gt;"</code>. Shown only when the model fits (not TooTight).</li>
+              <li><strong className="text-zinc-300">Download</strong> — Runs <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">forellm download</code> for that model. Disabled when the model does not fit (TooTight) or while a download is in progress. Only GGUF repos are supported.</li>
+              <li><strong className="text-zinc-300">Add to cart</strong> — Cart icon adds the model to the Multi-Model Cart to check combined memory vs effective hardware (VRAM, RAM, cores). Uses the same effective hardware as the What-If Simulator when active. Disabled when the model does not fit.</li>
             </ul>
             <p className="mt-2 text-zinc-500">Fit badges (Perfect, Good, Marginal, TooTight) show how well the model fits current or simulated hardware.</p>
 
@@ -173,8 +167,7 @@ npm run dev`}
                   <tr><td className="px-3 py-2 font-medium text-zinc-200">System Telemetry</td><td className="px-3 py-2">Gauges (RAM, VRAM, Cores) and spec list (CPU, RAM, GPU, VRAM, Backend, OS).</td></tr>
                   <tr><td className="px-3 py-2 font-medium text-zinc-200">What-If Simulator</td><td className="px-3 py-2">Override VRAM, RAM, CPU cores; Apply / Reset; model list and scores update.</td></tr>
                   <tr><td className="px-3 py-2 font-medium text-zinc-200">Sidebar collapse</td><td className="px-3 py-2">Collapse to icon strip; expand to full sidebar. Instant.</td></tr>
-                  <tr><td className="px-3 py-2 font-medium text-zinc-200">Model Explorer</td><td className="px-3 py-2">Search, context slider, sortable table, expand row, copy run/download command.</td></tr>
-                  <tr><td className="px-3 py-2 font-medium text-zinc-200">Paste & download</td><td className="px-3 py-2">Paste command or model ID; run forellm download; result auto-dismisses after 7 s.</td></tr>
+                  <tr><td className="px-3 py-2 font-medium text-zinc-200">Model Explorer</td><td className="px-3 py-2">Search, context slider, sortable table, expand row. Actions per row: Copy (run command), Download (forellm download), Add to cart.</td></tr>
                   <tr><td className="px-3 py-2 font-medium text-zinc-200">Multi-Model Cart</td><td className="px-3 py-2">Add models; see total memory vs effective VRAM/RAM/cores (same as simulator when active).</td></tr>
                   <tr><td className="px-3 py-2 font-medium text-zinc-200">Refresh</td><td className="px-3 py-2">Reload system and fit data (respects simulator override).</td></tr>
                   <tr><td className="px-3 py-2 font-medium text-zinc-200">Window controls</td><td className="px-3 py-2">Minimize, Maximize/Restore, Close (Electron).</td></tr>
