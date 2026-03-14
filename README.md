@@ -528,7 +528,7 @@ To publish updates:
 
 ```sh
 # Bump version
-# Edit Cargo.toml: version = "0.2.0"
+# Edit Cargo.toml: version = "0.6.9"
 cargo publish
 ```
 
@@ -655,7 +655,7 @@ Contributions are welcome, especially new models.
    # or: ./scripts/update_models.sh
    ```
 4. Verify the updated model list: `./target/release/forellm list`
-5. Update [MODELS.md](MODELS.md) by running: `python3 << 'EOF' < scripts/...` (see commit history for the generator script)
+5. Optionally update [MODELS.md](MODELS.md) if you added notable models (the live database is `data/hf_models.json`).
 6. Open a pull request.
 
 See [MODELS.md](MODELS.md) for the current list and [AGENTS.md](AGENTS.md) for architecture details.

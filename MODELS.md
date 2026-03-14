@@ -1,6 +1,6 @@
 # Supported Models
 
-ForeLLM ships with a curated database of 106 LLM models from HuggingFace. All memory estimates assume Q4_K_M quantization (0.5 bytes per parameter) unless noted otherwise.
+ForeLLM ships with a curated database of **569+** LLM models from HuggingFace (see `data/hf_models.json`). The tables below show a subset by provider. All memory estimates assume Q4_K_M quantization (0.5 bytes per parameter) unless noted otherwise.
 
 ### 01.ai
 
