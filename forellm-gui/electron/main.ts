@@ -210,6 +210,50 @@ function registerIpc(): void {
     await shell.openExternal(url)
   })
 
+  /** Ollama chat: POST to localhost:11434/api/chat. Messages: [{ role: 'system'|'user'|'assistant', content }]. */
+  ipcMain.handle(
+    'ollama:chat',
+    async (
+      _,
+      model: string,
+      messages: Array<{ role: string; content: string }>
+    ): Promise<{ success: boolean; content?: string; error?: string }> => {
+      try {
+        const res = await fetch('http://127.0.0.1:11434/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model, messages, stream: false })
+        })
+        if (!res.ok) {
+          const t = await res.text()
+          return { success: false, error: t || `Ollama ${res.status}` }
+        }
+        const data = (await res.json()) as { message?: { content?: string }; error?: string }
+        if (data.error) return { success: false, error: data.error }
+        return { success: true, content: data.message?.content ?? '' }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        return { success: false, error: msg }
+      }
+    }
+  )
+
+  /** List Ollama models (GET /api/tags) for agent model selector. */
+  ipcMain.handle(
+    'ollama:listModels',
+    async (): Promise<{ success: boolean; models?: string[]; error?: string }> => {
+      try {
+        const res = await fetch('http://127.0.0.1:11434/api/tags')
+        if (!res.ok) return { success: false, error: `Ollama ${res.status}` }
+        const data = (await res.json()) as { models?: Array<{ name: string }> }
+        const names = (data.models ?? []).map((m) => m.name)
+        return { success: true, models: names }
+      } catch (err) {
+        return { success: false, error: err instanceof Error ? err.message : String(err) }
+      }
+    }
+  )
+
   ipcMain.handle('window:minimize', () => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize()
   })

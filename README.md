@@ -259,13 +259,13 @@ npm run dev
 
 - **System telemetry** — Gauges for RAM, VRAM, and CPU cores from `forellm system --json`
 - **What-If simulator** — Override VRAM (e.g. "RTX 4090", "A100 80GB") and recalculate fit scores via `forellm fit --memory XG`
-- **Model explorer** — Sortable table with Fit badges, quantization matrix, and context slider (2k–128k) that updates required memory in real time
-- **Multi-model cart** — Add several models (LLM + embedding + etc.) and see cumulative VRAM/RAM usage
-- **Run via Ollama** — Copy the exact `ollama run <tag>` or `forellm download` command for each model
+- **Model Explorer** — Sortable table with Fit badges, quantization matrix, and context slider (2k–128k). Per-row actions: copy run command, download (runs `forellm download`), and add to cart.
+- **Multi-model cart** — Add several models (LLM + embedding + etc.) and see cumulative VRAM/RAM usage vs effective hardware.
+- **Agent Fore** — AI chat tab powered by Ollama. The agent knows your system specs and the full model list, answers in Markdown with syntax-highlighted code, and is scoped to ForeLLM (suggests commands and steps; asks before applying changes). Requires Ollama running locally.
 
 The GUI is in `forellm-gui/` (Electron + React + Tailwind). Set `FORELLM_PATH` to the binary if it is not in `../target/release/forellm`. The app and taskbar use `forellm-gui/public/forellm.png` as the window icon; the README uses `assets/forellm.png`. No in-app favicon.
 
-**Full app documentation:** [forellm-gui/docs/APP.md](forellm-gui/docs/APP.md) — title bar, sidebar (System Telemetry, What-If Simulator, collapse), Model Explorer (search, context, paste-and-download, table, cart), Multi-Model Cart, download behavior, and environment.
+**Full app documentation:** [forellm-gui/docs/APP.md](forellm-gui/docs/APP.md) — title bar, sidebar (System Telemetry, What-If Simulator, collapse), Model Explorer (search, context, per-row copy/download/add-to-cart, table), Agent Fore (Ollama chat), Multi-Model Cart, download behavior, and environment.
 
 ### Landing page
 
