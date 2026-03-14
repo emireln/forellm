@@ -125,6 +125,14 @@ Use the cart to check whether several models (e.g. LLM + embedding) fit together
 
 ---
 
+## Agent Fore (Ollama chat)
+
+The **Agent Fore** tab is an AI chat powered by Ollama, with multiple agents (General, Data Analyst, Web Researcher, Coding Expert) and tools: read attached files, web search, run Python, and run terminal commands (with Allow/Deny). The agent has access to your system specs and the ForeLLM model list.
+
+**Same chat from the terminal (Agent Fore CLI):** From the `forellm-gui` directory run `npm run agent` (or `npx tsx cli/agent-cli.ts`). Model is auto-detected from Ollama; use `--model`, `--agent general|data|web|coding`, and `--file <path>` to override or attach files. In the chat, type **`/help`** to see slash commands (`/clear`, `/agent`, `/model`, `/models`, `/file`, `/files`, etc.). See [AGENT_FORE_ARCHITECTURE.md](AGENT_FORE_ARCHITECTURE.md) for full usage.
+
+---
+
 ## Download command (CLI behavior)
 
 The GUI runs `forellm download <model> [--quant X] [--list]` via IPC.
@@ -158,5 +166,6 @@ Only repos that contain **GGUF** files work. Repos with only PyTorch/safetensors
 | **Multi-Model Cart** | Add models from table; see total VRAM and fit status; Clear. Empty state: cart icon only. |
 | **Refresh** | Reload system and fit data (respects current simulator override). |
 | **Window controls** | Minimize, Maximize/Restore, Close (Electron). |
+| **Agent Fore** | Ollama chat tab: agents (General, Data Analyst, Web Researcher, Coding Expert), tools (read file, web search, Python, run command with confirm). Also available as CLI: `npm run agent` from `forellm-gui`. |
 
 All data (system, fit, recommendations) comes from the `forellm` binary; the GUI is a front-end that displays and triggers these operations.

@@ -1,6 +1,52 @@
 # Agent Fore — Architecture & Feature Set
 
-Agent Fore is a flexible, chat-based AI assistant inside the ForeLLM desktop GUI. It supports **multimodal inputs**, **file attachments**, **multi-agent selection**, and **backend tool execution**, with an architecture that can grow to include RAG and streaming.
+Agent Fore is a flexible, chat-based AI assistant available in the **ForeLLM desktop GUI** and as a **CLI**. It supports **multimodal inputs**, **file attachments**, **multi-agent selection**, and **backend tool execution**, with an architecture that can grow to include RAG and streaming.
+
+---
+
+## 0. CLI vs GUI
+
+| Interface | How to run | Same behavior |
+|-----------|------------|----------------|
+| **GUI** | ForeLLM desktop app → Agent Fore tab | Streaming, file drag-and-drop, Allow/Deny for run_command, reply buttons |
+| **CLI** | From `forellm-gui`: `npm run agent` or `npx tsx cli/agent-cli.ts` | Same agents (general, data, web, coding), same tools (read_document, web_search, execute_python, run_command with terminal y/N confirm). Attach files with `--file path`. Requires Node 18+, `forellm` binary, Ollama. |
+
+The CLI shares `forellm-gui/src/lib/agentConfig.ts` (system prompts and tool schemas) and implements the same Ollama tool-calling loop and tool runners (read file by path, web search, Python subprocess, run_command with confirmation). It auto-detects the Ollama model (currently running via `/api/ps`, or first available via `/api/tags`), shows a styled banner, and supports slash commands; type **`/help`** to list them.
+
+### How to use Agent Fore from the CLI
+
+1. **Prerequisites**
+   - Node.js 18+
+   - `forellm` binary built (e.g. `cargo build --release` from repo root)
+   - Ollama installed and running; at least one model pulled. The CLI auto-detects the running or first available model unless `--model` is passed.
+
+2. **Start the CLI**
+   - From repo root: `cd forellm-gui && npm install && npm run agent`
+   - Or: `npx tsx cli/agent-cli.ts` (from inside `forellm-gui`)
+
+3. **Startup options**
+   - `--model <name>` — Force this Ollama model (otherwise auto-detect).
+   - `--agent general|data|web|coding` — Agent persona and tool set (default: `general`).
+   - `--file <path>` — Attach a file; repeat for multiple. The agent can read them via `read_document`.
+
+4. **Slash commands (in-chat)**  
+   Type `/help` to see the full list. Summary:
+   - `/help` — Show all commands.
+   - `/quit`, `/exit`, `/q` — Exit.
+   - `/clear`, `/new` — Clear conversation (keep agent, model, attachments).
+   - `/agent` [id] — Show or switch agent (general, data, web, coding).
+   - `/model` [name] — Show or switch Ollama model.
+   - `/models` — List available Ollama models.
+   - `/file` <path> — Attach a file.
+   - `/files` — List attached files.
+
+5. **During the chat**
+   - Type your message and press Enter.
+   - If the agent requests a shell command, you'll see `Run: <command>` and `Allow? [y/N]:`. Type `y` + Enter to run, or Enter to deny.
+   - If the agent ends with reply buttons (e.g. `BUTTONS: Yes, No`), the CLI shows `[1] Yes  [2] No`; reply with the number or label.
+   - Type `/quit`, `/exit`, or `/q` to exit.
+
+If the `forellm` binary is not in `../target/release/forellm`, set the `FORELLM_PATH` environment variable to its path.
 
 ---
 

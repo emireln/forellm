@@ -8,13 +8,13 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
 </p>
 
-**569+ models & providers. One command to find what runs on your hardware.**
+**569+ models & providers. Find out the fits.**
 
 A terminal tool that right-sizes LLM models to your system's RAM, CPU, and GPU. Detects your hardware, scores each model across quality, speed, fit, and context dimensions, and tells you which ones will actually run well on your machine.
 
 Ships with an interactive **TUI** (default), a **classic CLI**, a **REST API** (`forellm serve`), and an optional **desktop GUI** (Electron + React) for a visual dashboard. Supports multi-GPU setups, MoE architectures, dynamic quantization selection, speed estimation, and local runtime providers (Ollama, llama.cpp, MLX).
 
-**By Emir Lima, using the core of llmfit.**
+**By Emir Lima, using the core of https://github.com/AlexsJones/llmfit.**
 
 ---
 
@@ -263,9 +263,78 @@ npm run dev
 - **Multi-model cart** — Add several models (LLM + embedding + etc.) and see cumulative VRAM/RAM usage vs effective hardware.
 - **Agent Fore** — AI chat tab powered by Ollama. Real-time streaming (token-by-token typing), multiple agents (General, Data Analyst, Web Researcher, Coding Expert), and tools: read attached files (JSON, CSV, TXT, etc.), run Python snippets, web search, and run terminal commands with your confirmation (Allow/Deny). Attach files by drag-and-drop; the agent sees your system specs and the full ForeLLM model list. Agent questions can show reply buttons (Yes/No or custom). Requires Ollama running locally.
 
+**Agent Fore CLI** — The same Agent Fore chat in the terminal. See [Using Agent Fore from the CLI](#using-agent-fore-from-the-cli) below.
+
 The GUI is in `forellm-gui/` (Electron + React + Tailwind). Set `FORELLM_PATH` to the binary if it is not in `../target/release/forellm`. The app and taskbar use `forellm-gui/public/forellm.png` as the window icon; the README uses `assets/forellm.png`. No in-app favicon.
 
 **Full app documentation:** [forellm-gui/docs/APP.md](forellm-gui/docs/APP.md) — title bar, sidebar (System Telemetry, What-If Simulator, collapse), Model Explorer (search, context, per-row copy/download/add-to-cart, table), Agent Fore (Ollama chat), Multi-Model Cart, download behavior, and environment.
+
+#### Using Agent Fore from the CLI
+
+You can run Agent Fore in the terminal with the same agents and tools as the GUI (read files, web search, run Python, run shell commands with confirmation). The CLI auto-detects the currently running Ollama model (or the first available one), shows a styled banner, and supports slash commands. Type **`/help`** in the chat to list all commands.
+
+**Prerequisites**
+
+- Node.js 18+
+- `forellm` binary (e.g. `cargo build --release` from repo root)
+- [Ollama](https://ollama.com) installed and running; at least one model pulled (e.g. `ollama pull deepseek-v3`). If no model is running, the CLI uses the first model returned by Ollama.
+
+**Run**
+
+From the **forellm-gui** directory:
+
+```sh
+cd forellm-gui
+npm install
+npm run agent
+```
+
+Or: `npx tsx cli/agent-cli.ts`
+
+**Startup options**
+
+| Option | Description |
+|--------|-------------|
+| `--model <name>` | Force this Ollama model (otherwise auto-detect from running or available). |
+| `--agent <id>` | Agent: `general`, `data`, `web`, or `coding` (default: `general`). |
+| `--file <path>` | Attach a file; repeat to attach multiple. The agent can read them via `read_document`. |
+
+**Examples**
+
+```sh
+# Auto-detect model, General Assistant
+npm run agent
+
+# Force a model and the Data Analyst agent
+npm run agent -- --model qwen2.5:7b --agent data
+
+# Attach files (JSON, CSV, TXT, etc.)
+npm run agent -- --file ./data.csv --file ./notes.txt
+
+# Web Researcher (has web_search)
+npm run agent -- --agent web
+```
+
+**Slash commands (type `/help` in the chat)**
+
+| Command | Description |
+|---------|-------------|
+| `/help` | Show all commands. |
+| `/quit`, `/exit`, `/q` | Exit the CLI. |
+| `/clear`, `/new` | Clear the conversation (keep agent, model, and attachments). |
+| `/agent` [id] | Show current agent or switch: `general`, `data`, `web`, `coding`. |
+| `/model` [name] | Show current model or switch Ollama model. |
+| `/models` | List available Ollama models. |
+| `/file` &lt;path&gt; | Attach a file (agent can `read_document`). |
+| `/files` | List attached files. |
+
+**During the chat**
+
+- Type your message and press Enter. The agent may call tools (web search, read file, run Python, or run a shell command).
+- If the agent asks to run a **shell command**, you'll see `Allow? [y/N]:` — type `y` and Enter to run, or Enter to deny.
+- If the agent ends a message with reply buttons (e.g. `BUTTONS: Yes, No`), the CLI shows `[1] Yes  [2] No`; you can reply with the number or the label.
+
+Set `FORELLM_PATH` to the `forellm` binary if it is not under `../target/release/forellm` relative to the repo.
 
 ### Landing page
 

@@ -85,8 +85,8 @@ On Apple Silicon (unified memory), VRAM and system RAM are the same pool; CpuOff
 ## Quantization (GGUF-style)
 Q2_K, Q3_K_M, Q4_K_M (default), Q5_K_M, Q6_K, Q8_0, FP16. Lower bits = smaller, faster, less quality.
 
-## Ollama (GUI agent)
-The ForeLLM GUI uses Ollama for local inference in this chat. Suggest "ollama run <model>" to run a model; forellm download <model> can help prepare. User selects an Ollama model in the Agent Fore UI.
+## Ollama (GUI and CLI agent)
+The ForeLLM GUI uses Ollama for local inference in the Agent Fore tab. A CLI version of Agent Fore runs in the terminal: from the forellm-gui directory run: npm run agent (or npx tsx cli/agent-cli.ts). Options: --model <ollama-model>, --agent general|data|web|coding, --file <path> (repeat to attach files). Same agents and tools; run_command prompts for Allow [y/N] in the terminal. Suggest "ollama run <model>" to run a model; forellm download <model> can help prepare.
 
 ## Common tasks
 cargo build / cargo run; cargo run -- --cli for table; forellm system | fit | list | search "llama"; refresh DB: python3 scripts/scrape_hf_models.py && cargo build.
