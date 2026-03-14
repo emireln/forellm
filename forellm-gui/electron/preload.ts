@@ -30,6 +30,11 @@ export interface ForellmAPI {
     opts?: { context?: number; quant?: string; targetTps?: number }
   ) => Promise<unknown>
   openExternal: (url: string) => Promise<void>
+  chatOllama: (
+    model: string,
+    messages: Array<{ role: string; content: string }>
+  ) => Promise<{ success: boolean; content?: string; error?: string }>
+  listOllamaModels: () => Promise<{ success: boolean; models?: string[]; error?: string }>
 }
 
 const api: ForellmAPI = {
@@ -47,7 +52,9 @@ const api: ForellmAPI = {
   getInfo: (model) => ipcRenderer.invoke('forellm:info', model),
   downloadModel: (model, opts) => ipcRenderer.invoke('forellm:download', model, opts),
   getPlan: (model, opts) => ipcRenderer.invoke('forellm:plan', model, opts),
-  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url)
+  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+  chatOllama: (model, messages) => ipcRenderer.invoke('ollama:chat', model, messages),
+  listOllamaModels: () => ipcRenderer.invoke('ollama:listModels')
 }
 
 contextBridge.exposeInMainWorld('forellm', api)

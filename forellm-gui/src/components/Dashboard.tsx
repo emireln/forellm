@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react'
 import type { SystemData, FitData, ModelFit, CartItem, HardwareOverride } from '../lib/types'
 import { HardwarePanel } from './HardwarePanel'
 import { ModelExplorer } from './ModelExplorer'
+import { AgentFore } from './AgentFore'
 import { MultiModelCart } from './MultiModelCart'
 import { Documentation } from './Documentation'
-import { RefreshCw, Minus, Square, X, PanelLeftClose, PanelLeftOpen, BookOpen } from 'lucide-react'
+import { RefreshCw, Minus, Square, X, PanelLeftClose, PanelLeftOpen, BookOpen, Layers, Bot } from 'lucide-react'
 import type { SystemInfo } from '../lib/types'
+
+type MainView = 'explorer' | 'agent'
 
 /** Effective hardware for cart/simulator: from override or detected system. */
 function getEffectiveHardware(
@@ -78,6 +81,7 @@ export function Dashboard({
   const [isMaximized, setIsMaximized] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [docsOpen, setDocsOpen] = useState(false)
+  const [mainView, setMainView] = useState<MainView>('explorer')
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.forellm) {
@@ -204,16 +208,56 @@ export function Dashboard({
             )}
           </div>
 
-          {/* Main content: Model Explorer */}
-          <div className="min-w-0 flex-1 overflow-hidden bg-zinc-950">
-            <ModelExplorer
-              models={fitData?.models ?? []}
-              loading={loading}
-              contextLength={contextLength}
-              onContextChange={onContextChange}
-              onAddToCart={onAddToCart}
-              cartItems={cartItems}
-            />
+          {/* Main content: Model Explorer or Agent Fore */}
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-zinc-950">
+            {/* Top bar: Model Explorer | Agent Fore */}
+            <div className="flex shrink-0 items-center gap-1 border-b border-zinc-800 px-3 py-1.5">
+              <button
+                type="button"
+                onClick={() => setMainView('explorer')}
+                className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wider transition ${
+                  mainView === 'explorer'
+                    ? 'bg-zinc-800 text-zinc-200'
+                    : 'text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300'
+                }`}
+              >
+                <Layers className="h-3.5 w-3.5 text-cyan-400" />
+                Model Explorer
+              </button>
+              <button
+                type="button"
+                onClick={() => setMainView('agent')}
+                className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wider transition ${
+                  mainView === 'agent'
+                    ? 'bg-emerald-500/15 text-emerald-400'
+                    : 'text-zinc-500 hover:bg-zinc-800/60 hover:text-emerald-400/90'
+                }`}
+                title="AI agent with system specs and model knowledge"
+              >
+                <Bot className="h-4 w-4 text-emerald-400" />
+                Agent Fore
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-hidden">
+              {mainView === 'explorer' && (
+                <ModelExplorer
+                  models={fitData?.models ?? []}
+                  loading={loading}
+                  contextLength={contextLength}
+                  onContextChange={onContextChange}
+                  onAddToCart={onAddToCart}
+                  cartItems={cartItems}
+                />
+              )}
+              {mainView === 'agent' && (
+                <AgentFore
+                  system={systemData?.system ?? fitData?.system ?? null}
+                  models={fitData?.models ?? []}
+                  contextLength={contextLength}
+                  loading={loading}
+                />
+              )}
+            </div>
           </div>
         </div>
 
