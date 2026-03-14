@@ -135,7 +135,7 @@ The **Agent Selector** in the UI switches the active “agent” (persona + tool
 
 | Agent | System prompt focus | Tools |
 |-------|---------------------|--------|
-| **General Assistant** | ForeLLM context, hardware, models; general Q&A | `read_document`, `run_command` |
+| **General Assistant** | ForeLLM context, hardware, models; general Q&A | `read_document`, `analyze_image`, `run_command` |
 | **Data Analyst** | Data analysis, CSVs, charts, statistics | `read_document`, `run_command`, `execute_python` |
 | **Web Researcher** | Real-time web info, citations | `web_search`, `read_document`, `run_command` |
 | **Coding Expert** | Code generation, debugging, scripts | `read_document`, `run_command`, `execute_python` |
@@ -164,9 +164,12 @@ The backend receives the **agent_id** (or tool list) with each request and only 
 
 4. **Execution**  
    - **web_search(query)** — Backend calls DuckDuckGo (or similar); returns text to the LLM.  
-   - **read_document(file_id)** — Backend looks up the file in the file store, reads content (UTF-8 or binary placeholder), returns it.  
-   - **run_command(command)** — Returns a **pending** marker; frontend shows Allow/Deny. On Allow, **agent:runCommand** runs the command (shell); result is sent via **ollama:chatContinue**.  
+   - **read_document(file_id)** — Backend looks up the file in the file store, reads content (UTF-8 or binary placeholder), returns it. Use for text, JSON, CSV, SVG.  
+   - **analyze_image(file_id)** — For uploaded images (PNG, JPEG, GIF, WebP). Backend sends the image to Ollama with a vision model (default `llava`; override via `OLLAMA_VISION_MODEL`), returns the description text to the LLM.  
+   - **run_command(command)** — Returns a **pending** marker; frontend shows Allow/Deny. On Allow, **agent:runCommand** runs the command (shell). If the command starts with `forellm`, the binary path is resolved when not on PATH (FORELLM_PATH or `target/release/forellm`). Result is sent via **ollama:chatContinue**.  
    - **execute_python(code)** — Temp file, subprocess with timeout (e.g. 30s); return stdout + stderr. Missing modules (e.g. `requests`) get a hint in the error for the model.
+
+   **Echoed tool calls:** If the model outputs tags in text instead of tool_calls, the backend parses them and runs the tool: `<run_command>...</run_command>`, `<read_document>file_id</read_document>`, `<analyze_image>file_id</analyze_image>`.
 
 ---
 
@@ -202,6 +205,7 @@ All Agent Fore ↔ main process communication is via IPC (no HTTP server inside 
 | `ollama:listModels` | Renderer → Main | List Ollama models for the model selector. |
 | `agent:uploadFile` | Renderer → Main | Upload a file (buffer + name); returns `file_id`. |
 | `agent:readDocument` | Renderer → Main | Get content of a file by `file_id`. |
+| (analyze_image) | Main (tool loop) | Image analysis via Ollama vision model; no direct IPC from renderer. |
 | `agent:webSearch` | Renderer → Main | Run web_search(query). |
 | `agent:executePython` | Renderer → Main | Run execute_python(code); returns { stdout, stderr }. |
 | `agent:runCommand` | Renderer → Main | Run a shell command (after user Allow); returns { stdout, stderr }. |

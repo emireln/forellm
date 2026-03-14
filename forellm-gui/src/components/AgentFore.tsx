@@ -44,8 +44,12 @@ export function AgentFore({ system, models, contextLength }: Props) {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(() => null)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [backend, setBackend] = useState<'ollama' | 'openclaw'>('ollama')
   const [ollamaModels, setOllamaModels] = useState<string[]>([])
   const [ollamaError, setOllamaError] = useState<string | null>(null)
+  const [openclawModels, setOpenclawModels] = useState<string[]>([])
+  const [openclawError, setOpenclawError] = useState<string | null>(null)
+  const [openclawBaseUrl, setOpenclawBaseUrl] = useState('')
   const [selectedModel, setSelectedModel] = useState('')
   const [selectedAgentId, setSelectedAgentId] = useState('general')
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
@@ -87,7 +91,7 @@ export function AgentFore({ system, models, contextLength }: Props) {
     window.forellm.listOllamaModels().then((r) => {
       if (r.success && r.models?.length) {
         setOllamaModels(r.models)
-        if (!selectedModel && r.models.length) setSelectedModel(r.models[0])
+        if (backend === 'ollama' && !selectedModel && r.models.length) setSelectedModel(r.models[0])
         setOllamaError(null)
       } else {
         setOllamaError(r.error || 'Ollama not running')
@@ -96,8 +100,25 @@ export function AgentFore({ system, models, contextLength }: Props) {
   }, [])
 
   useEffect(() => {
-    if (ollamaModels.length && !selectedModel) setSelectedModel(ollamaModels[0])
-  }, [ollamaModels, selectedModel])
+    if (backend !== 'openclaw' || typeof window === 'undefined' || !window.forellm?.listOpenClawModels) return
+    const base = openclawBaseUrl.trim() || undefined
+    window.forellm.listOpenClawModels(base).then((r) => {
+      if (r.success && r.models?.length) {
+        setOpenclawModels(r.models)
+        if (!selectedModel && r.models.length) setSelectedModel(r.models[0])
+        setOpenclawError(null)
+      } else {
+        setOpenclawModels(r.models?.length ? r.models : ['openclaw'])
+        if (!selectedModel) setSelectedModel('openclaw')
+        setOpenclawError(r.error ?? null)
+      }
+    })
+  }, [backend, openclawBaseUrl])
+
+  useEffect(() => {
+    if (backend === 'ollama' && ollamaModels.length && !selectedModel) setSelectedModel(ollamaModels[0])
+    if (backend === 'openclaw' && openclawModels.length && !selectedModel) setSelectedModel(openclawModels[0])
+  }, [backend, ollamaModels, openclawModels, selectedModel])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -105,7 +126,7 @@ export function AgentFore({ system, models, contextLength }: Props) {
 
   /** Remove raw tool-call lines echoed by the model (e.g. read_document { "file_id": "..." }) so the bubble stays clean. */
   function stripToolCallEchoes(content: string): string {
-    const toolNames = ['read_document', 'web_search', 'execute_python', 'run_command']
+    const toolNames = ['read_document', 'web_search', 'execute_python', 'run_command', 'analyze_image']
     const lineRe = new RegExp(`^\\s*(${toolNames.join('|')})\\s*\\{`)
     const toolCallLineRe = /tool_call_name\s+\w+\s+tool_call_arguments\s/
     const lines = content
@@ -125,59 +146,75 @@ export function AgentFore({ system, models, contextLength }: Props) {
   }
 
   async function runChatWithHistory(historyForApi: ChatMessage[]) {
-    const streamApi = window.forellm?.chatOllamaStream ?? window.forellm?.chatOllama
-    if (!streamApi) return
-    const modelToUse = selectedModel || ollamaModels[0]
+    const isOpenClaw = backend === 'openclaw'
+    const modelToUse = selectedModel || (isOpenClaw ? openclawModels[0] : ollamaModels[0])
     if (!modelToUse) {
-      setOllamaError('Select an Ollama model or start Ollama')
+      if (isOpenClaw) setOpenclawError('Select OpenClaw model or check gateway')
+      else setOllamaError('Select an Ollama model or start Ollama')
       return
     }
+    const streamApi = isOpenClaw
+      ? (window.forellm?.chatOpenClawStream ?? window.forellm?.chatOpenClaw)
+      : (window.forellm?.chatOllamaStream ?? window.forellm?.chatOllama)
+    if (!streamApi) return
     setSending(true)
-    setOllamaError(null)
+    if (isOpenClaw) setOpenclawError(null)
+    else setOllamaError(null)
     streamingBufferRef.current = ''
-    const useStream = Boolean(window.forellm?.onAgentStreamDelta && window.forellm?.chatOllamaStream)
+    const useStream = isOpenClaw
+      ? Boolean(window.forellm?.onAgentStreamDelta && window.forellm?.chatOpenClawStream)
+      : Boolean(window.forellm?.onAgentStreamDelta && window.forellm?.chatOllamaStream)
     if (useStream) setStreamingContent('')
 
     if (useStream && window.forellm?.onAgentStreamDelta) {
       window.forellm.onAgentStreamDelta(({ delta, done, startNewMessage }) => {
-        if (startNewMessage) {
-          const toPush = streamingBufferRef.current
-          if (toPush.trim()) {
-            setMessages((prev) => [...prev, { role: 'assistant' as const, content: toPush }])
+        try {
+          if (startNewMessage) {
+            const toPush = streamingBufferRef.current
+            if (toPush.trim()) {
+              setMessages((prev) => [...prev, { role: 'assistant' as const, content: toPush }])
+            }
+            streamingBufferRef.current = ''
+            setStreamingContent('')
+            return
           }
+          if (delta) {
+            streamingBufferRef.current += delta
+            setStreamingContent(streamingBufferRef.current)
+          }
+          if (done && !startNewMessage) {
+            // Stream ended for this message; final content will be pushed on resolve or next startNewMessage
+          }
+        } catch (e) {
+          console.error('AgentFore stream delta:', e)
           streamingBufferRef.current = ''
-          setStreamingContent('')
-          return
-        }
-        if (delta) {
-          streamingBufferRef.current += delta
-          setStreamingContent(streamingBufferRef.current)
-        }
-        if (done && !startNewMessage) {
-          // Stream ended for this message; final content will be pushed on resolve or next startNewMessage
+          setStreamingContent(null)
         }
       })
     }
 
+    const baseUrl = isOpenClaw ? (openclawBaseUrl.trim() || undefined) : undefined
+    const apiMessages = historyForApi.map((m) => ({ role: m.role, content: m.content }))
     try {
-      const res = useStream
-        ? await window.forellm.chatOllamaStream!(
-            modelToUse,
-            historyForApi.map((m) => ({ role: m.role, content: m.content })),
-            toolSchemas
-          )
-        : await window.forellm.chatOllama!(
-            modelToUse,
-            historyForApi.map((m) => ({ role: m.role, content: m.content })),
-            toolSchemas
-          )
+      const res = isOpenClaw
+        ? (useStream
+            ? await window.forellm!.chatOpenClawStream!(baseUrl, modelToUse, apiMessages, toolSchemas)
+            : await window.forellm!.chatOpenClaw!(baseUrl, modelToUse, apiMessages, toolSchemas))
+        : (useStream
+            ? await window.forellm!.chatOllamaStream!(modelToUse, apiMessages, toolSchemas)
+            : await window.forellm!.chatOllama!(modelToUse, apiMessages, toolSchemas))
 
       if (useStream) {
         const finalBuffer = streamingBufferRef.current.trim()
-        if (finalBuffer) {
-          setMessages((prev) => [...prev, { role: 'assistant' as const, content: finalBuffer }])
+        if (res.pendingCommand) {
+          // Main sent startNewMessage; listener will push. Defer clear so listener runs first and sees content.
+          setTimeout(() => { streamingBufferRef.current = '' }, 0)
+        } else {
+          streamingBufferRef.current = ''
+          if (finalBuffer) {
+            setMessages((prev) => [...prev, { role: 'assistant' as const, content: finalBuffer }])
+          }
         }
-        streamingBufferRef.current = ''
       }
       setStreamingContent(null)
 
@@ -191,7 +228,8 @@ export function AgentFore({ system, models, contextLength }: Props) {
           setPendingCommand({ command: res.pendingCommand.command, continueState: res.continueState })
         }
       } else {
-        setOllamaError(res.error || 'Request failed')
+        if (backend === 'openclaw') setOpenclawError(res.error || 'Request failed')
+        else setOllamaError(res.error || 'Request failed')
         setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${res.error || 'unknown'}` }])
       }
       setSessions((prev) =>
@@ -206,7 +244,8 @@ export function AgentFore({ system, models, contextLength }: Props) {
       )
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      setOllamaError(msg)
+      if (backend === 'openclaw') setOpenclawError(msg)
+      else setOllamaError(msg)
       setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${msg}` }])
       streamingBufferRef.current = ''
       setStreamingContent(null)
@@ -217,10 +256,13 @@ export function AgentFore({ system, models, contextLength }: Props) {
 
   async function send() {
     const text = input.trim()
-    if (!text || sending || !window.forellm?.chatOllama) return
-    const modelToUse = selectedModel || ollamaModels[0]
+    const isOpenClaw = backend === 'openclaw'
+    const hasApi = isOpenClaw ? window.forellm?.chatOpenClaw : window.forellm?.chatOllama
+    if (!text || sending || !hasApi) return
+    const modelToUse = selectedModel || (isOpenClaw ? openclawModels[0] : ollamaModels[0])
     if (!modelToUse) {
-      setOllamaError('Select an Ollama model or start Ollama')
+      if (isOpenClaw) setOpenclawError('Select OpenClaw model or check gateway')
+      else setOllamaError('Select an Ollama model or start Ollama')
       return
     }
 
@@ -247,7 +289,8 @@ export function AgentFore({ system, models, contextLength }: Props) {
   }
 
   async function sendReply(replyText: string) {
-    if (sending || !window.forellm?.chatOllama) return
+    const hasApi = backend === 'openclaw' ? window.forellm?.chatOpenClaw : window.forellm?.chatOllama
+    if (sending || !hasApi) return
     const userMsg: ChatMessage = { role: 'user', content: replyText }
     setMessages((prev) => [...prev, userMsg])
     const fullHistoryForApi: ChatMessage[] = [
@@ -283,15 +326,28 @@ export function AgentFore({ system, models, contextLength }: Props) {
         })()
       : 'User denied the command.'
     try {
-      if (!window.forellm?.chatOllamaContinue) {
-        setOllamaError('Continue not available')
-        setSending(false)
-        return
+      const continueState = pending.continueState as { backend?: string }
+      const isOpenClaw = continueState?.backend === 'openclaw'
+      if (isOpenClaw) {
+        if (!window.forellm?.chatOpenClawContinue) {
+          setOpenclawError('Continue not available')
+          setSending(false)
+          return
+        }
+      } else {
+        if (!window.forellm?.chatOllamaContinue) {
+          setOllamaError('Continue not available')
+          setSending(false)
+          return
+        }
       }
-      const res = await window.forellm.chatOllamaContinue(pending.continueState as Parameters<typeof window.forellm.chatOllamaContinue>[0], toolResult)
+      const res = isOpenClaw
+        ? await window.forellm!.chatOpenClawContinue(pending.continueState, toolResult)
+        : await window.forellm!.chatOllamaContinue(pending.continueState as Parameters<typeof window.forellm.chatOllamaContinue>[0], toolResult)
       if (res.success) {
-        if (res.contents?.length) {
-          setMessages((prev) => [...prev, ...res.contents.map((c) => ({ role: 'assistant' as const, content: c }))])
+        const contents = res.contents
+        if (Array.isArray(contents) && contents.length > 0) {
+          setMessages((prev) => [...prev, ...contents.map((c) => ({ role: 'assistant' as const, content: c }))])
         } else if (res.content != null) {
           setMessages((prev) => [...prev, { role: 'assistant', content: res.content }])
         }
@@ -299,12 +355,14 @@ export function AgentFore({ system, models, contextLength }: Props) {
           setPendingCommand({ command: res.pendingCommand.command, continueState: res.continueState })
         }
       } else {
-        setOllamaError(res.error || 'Continue failed')
+        if (continueState?.backend === 'openclaw') setOpenclawError(res.error || 'Continue failed')
+        else setOllamaError(res.error || 'Continue failed')
         setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${res.error ?? 'unknown'}` }])
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      setOllamaError(msg)
+      if (continueState?.backend === 'openclaw') setOpenclawError(msg)
+      else setOllamaError(msg)
       setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${msg}` }])
     } finally {
       setSending(false)
@@ -353,7 +411,7 @@ export function AgentFore({ system, models, contextLength }: Props) {
     setShowRenameInput(false)
   }
 
-  const canSend = input.trim().length > 0 && (selectedModel || ollamaModels[0]) && !sending
+  const canSend = input.trim().length > 0 && (selectedModel || (backend === 'openclaw' ? openclawModels[0] : ollamaModels[0])) && !sending
 
   return (
     <div className="flex h-full flex-col bg-zinc-950">
@@ -379,16 +437,50 @@ export function AgentFore({ system, models, contextLength }: Props) {
           </select>
         </div>
         <div className="flex items-center gap-2">
+          <label className="text-[10px] text-zinc-500">Backend:</label>
+          <select
+            value={backend}
+            onChange={(e) => {
+              setBackend(e.target.value as 'ollama' | 'openclaw')
+              setSelectedModel('')
+            }}
+            className="agent-fore-select min-w-[100px]"
+          >
+            <option value="ollama">Ollama</option>
+            <option value="openclaw">OpenClaw</option>
+          </select>
+        </div>
+        {backend === 'openclaw' && (
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] text-zinc-500">URL:</label>
+            <input
+              type="text"
+              value={openclawBaseUrl}
+              onChange={(e) => setOpenclawBaseUrl(e.target.value)}
+              placeholder="127.0.0.1:18789"
+              className="agent-fore-select min-w-[140px] font-mono text-xs"
+            />
+          </div>
+        )}
+        <div className="flex items-center gap-2">
           <label className="text-[10px] text-zinc-500">Model:</label>
           <select
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
             className="agent-fore-select min-w-[160px]"
           >
-            {ollamaModels.length === 0 && (
+            {backend === 'ollama' && ollamaModels.length === 0 && (
               <option value="">{ollamaError || 'Loading…'}</option>
             )}
-            {ollamaModels.map((m) => (
+            {backend === 'openclaw' && openclawModels.length === 0 && (
+              <option value="">{openclawError != null ? openclawError : 'Loading…'}</option>
+            )}
+            {backend === 'ollama' && ollamaModels.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+            {backend === 'openclaw' && openclawModels.map((m) => (
               <option key={m} value={m}>
                 {m}
               </option>
@@ -491,11 +583,13 @@ export function AgentFore({ system, models, contextLength }: Props) {
         </div>
       </div>
 
-      {ollamaError && (
+      {(backend === 'ollama' ? ollamaError : openclawError) && (
         <div className="flex shrink-0 items-center gap-2 border-b border-amber-900/50 bg-amber-950/30 px-4 py-2 text-xs text-amber-300">
           <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{ollamaError}</span>
-          <span className="text-zinc-500">Start Ollama or pick a model to enable the agent.</span>
+          <span>{backend === 'ollama' ? ollamaError : openclawError}</span>
+          <span className="text-zinc-500">
+            {backend === 'ollama' ? 'Start Ollama or pick a model to enable the agent.' : 'Start OpenClaw gateway (openclaw gateway --port 18789) or check URL.'}
+          </span>
         </div>
       )}
 
