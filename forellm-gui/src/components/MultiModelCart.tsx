@@ -47,11 +47,6 @@ export function MultiModelCart({
         <span className="mono rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500">
           {items.length} model{items.length !== 1 && 's'}
         </span>
-        {isSimulated && (
-          <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
-            vs simulated hardware
-          </span>
-        )}
         <button
           onClick={onClear}
           className="ml-auto flex items-center gap-1 rounded px-2 py-0.5 text-[10px] text-zinc-500 transition hover:bg-zinc-800 hover:text-red-400"
@@ -86,11 +81,11 @@ export function MultiModelCart({
           ))}
         </div>
 
-        {/* Summary: full hardware (VRAM, RAM, Cores) like What-If simulator */}
+        {/* Summary: VRAM, RAM, Cores */}
         <div className="w-80 shrink-0 space-y-3">
           <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-zinc-500">
             <MemoryStick className="h-3 w-3" />
-            Effective hardware {isSimulated && '(simulated)'}
+            Your hardware
           </div>
           <div className="grid grid-cols-3 gap-2 text-[10px]">
             <div className="rounded border border-zinc-700/80 bg-zinc-800/50 px-2 py-1.5">
