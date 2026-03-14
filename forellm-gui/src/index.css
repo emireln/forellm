@@ -64,6 +64,22 @@
   .animate-dropdown-in {
     animation: dropdown-in 0.2s ease-out forwards;
   }
+  @keyframes typing {
+    0%, 60%, 100% { opacity: 0.35; }
+    30% { opacity: 1; }
+  }
+  .animate-typing-dot {
+    animation: typing 1.4s ease-in-out infinite;
+  }
+  .animate-typing-dot-2 { animation-delay: 0.2s; }
+  .animate-typing-dot-3 { animation-delay: 0.4s; }
+  @keyframes cursor-blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+  .animate-cursor-blink {
+    animation: cursor-blink 1s step-end infinite;
+  }
   .mono {
     @apply font-mono tabular-nums;
   }
@@ -81,5 +97,22 @@
   }
   .fit-tight {
     @apply border-red-500/30 bg-red-500/10 text-red-400;
+  }
+
+  /* Agent Fore dropdowns: match app (rounded, dark, emerald), no blue */
+  .agent-fore-select {
+    @apply rounded-lg border border-zinc-700 bg-zinc-900/95 py-2 pl-3 pr-8 text-xs text-zinc-200 shadow-sm outline-none transition;
+    @apply focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20;
+    @apply hover:border-zinc-600;
+    accent-color: #10b981;
+    appearance: none;
+    color-scheme: dark;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+  }
+  .agent-fore-select option {
+    background-color: #18181b;
+    color: #e4e4e7;
   }
 }

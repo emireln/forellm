@@ -32,9 +32,48 @@ export interface ForellmAPI {
   openExternal: (url: string) => Promise<void>
   chatOllama: (
     model: string,
-    messages: Array<{ role: string; content: string }>
-  ) => Promise<{ success: boolean; content?: string; error?: string }>
+    messages: Array<{ role: string; content: string }>,
+    tools?: Array<{ type: string; function: { name: string; description: string; parameters?: object } }>
+  ) => Promise<{
+    success: boolean
+    content?: string
+    contents?: string[]
+    error?: string
+    pendingCommand?: { command: string }
+    continueState?: { model: string; messages: unknown[]; pendingToolCall: { id: string; name: string; arguments: string }; tools?: unknown }
+  }>
+  chatOllamaContinue: (
+    continueState: { model: string; messages: unknown[]; pendingToolCall: { id: string; name: string; arguments: string }; tools?: unknown },
+    toolResult: string
+  ) => Promise<{
+    success: boolean
+    content?: string
+    contents?: string[]
+    error?: string
+    pendingCommand?: { command: string }
+    continueState?: unknown
+  }>
+  /** Subscribe to streaming deltas (call before chatOllamaStream). */
+  onAgentStreamDelta: (callback: (data: { delta: string; done: boolean; startNewMessage: boolean }) => void) => void
+  /** Stream chat; deltas are sent via onAgentStreamDelta. */
+  chatOllamaStream: (
+    model: string,
+    messages: Array<{ role: string; content: string }>,
+    tools?: Array<{ type: string; function: { name: string; description: string; parameters?: object } }>
+  ) => Promise<{
+    success: boolean
+    content?: string
+    contents?: string[]
+    error?: string
+    pendingCommand?: { command: string }
+    continueState?: unknown
+  }>
   listOllamaModels: () => Promise<{ success: boolean; models?: string[]; error?: string }>
+  agentUploadFile: (payload: { buffer: ArrayBuffer; name: string; mime?: string }) => Promise<{ success: boolean; fileId?: string; error?: string }>
+  agentReadDocument: (fileId: string) => Promise<{ success: boolean; content?: string; error?: string }>
+  agentWebSearch: (query: string) => Promise<{ success: boolean; content?: string; error?: string }>
+  agentExecutePython: (code: string) => Promise<{ success: boolean; stdout?: string; stderr?: string; error?: string }>
+  agentRunCommand: (command: string) => Promise<{ success: boolean; stdout?: string; stderr?: string; error?: string }>
 }
 
 const api: ForellmAPI = {
@@ -53,8 +92,19 @@ const api: ForellmAPI = {
   downloadModel: (model, opts) => ipcRenderer.invoke('forellm:download', model, opts),
   getPlan: (model, opts) => ipcRenderer.invoke('forellm:plan', model, opts),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
-  chatOllama: (model, messages) => ipcRenderer.invoke('ollama:chat', model, messages),
-  listOllamaModels: () => ipcRenderer.invoke('ollama:listModels')
+  chatOllama: (model, messages, tools) => ipcRenderer.invoke('ollama:chat', model, messages, tools),
+  chatOllamaContinue: (continueState, toolResult) => ipcRenderer.invoke('ollama:chatContinue', continueState, toolResult),
+  onAgentStreamDelta: (callback: (data: { delta: string; done: boolean; startNewMessage: boolean }) => void) => {
+    ipcRenderer.removeAllListeners('agent:streamDelta')
+    ipcRenderer.on('agent:streamDelta', (_e, data: { delta: string; done: boolean; startNewMessage: boolean }) => callback(data))
+  },
+  chatOllamaStream: (model, messages, tools) => ipcRenderer.invoke('ollama:chatStream', model, messages, tools),
+  listOllamaModels: () => ipcRenderer.invoke('ollama:listModels'),
+  agentUploadFile: (payload) => ipcRenderer.invoke('agent:uploadFile', payload),
+  agentReadDocument: (fileId) => ipcRenderer.invoke('agent:readDocument', fileId),
+  agentWebSearch: (query) => ipcRenderer.invoke('agent:webSearch', query),
+  agentExecutePython: (code) => ipcRenderer.invoke('agent:executePython', code),
+  agentRunCommand: (command) => ipcRenderer.invoke('agent:runCommand', command)
 }
 
 contextBridge.exposeInMainWorld('forellm', api)

@@ -261,7 +261,7 @@ npm run dev
 - **What-If simulator** — Override VRAM (e.g. "RTX 4090", "A100 80GB") and recalculate fit scores via `forellm fit --memory XG`
 - **Model Explorer** — Sortable table with Fit badges, quantization matrix, and context slider (2k–128k). Per-row actions: copy run command, download (runs `forellm download`), and add to cart.
 - **Multi-model cart** — Add several models (LLM + embedding + etc.) and see cumulative VRAM/RAM usage vs effective hardware.
-- **Agent Fore** — AI chat tab powered by Ollama. The agent knows your system specs and the full model list, answers in Markdown with syntax-highlighted code, and is scoped to ForeLLM (suggests commands and steps; asks before applying changes). Requires Ollama running locally.
+- **Agent Fore** — AI chat tab powered by Ollama. Real-time streaming (token-by-token typing), multiple agents (General, Data Analyst, Web Researcher, Coding Expert), and tools: read attached files (JSON, CSV, TXT, etc.), run Python snippets, web search, and run terminal commands with your confirmation (Allow/Deny). Attach files by drag-and-drop; the agent sees your system specs and the full ForeLLM model list. Agent questions can show reply buttons (Yes/No or custom). Requires Ollama running locally.
 
 The GUI is in `forellm-gui/` (Electron + React + Tailwind). Set `FORELLM_PATH` to the binary if it is not in `../target/release/forellm`. The app and taskbar use `forellm-gui/public/forellm.png` as the window icon; the README uses `assets/forellm.png`. No in-app favicon.
 
