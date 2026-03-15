@@ -167,7 +167,7 @@
     animation: agent-fore-wave 18s ease-in-out infinite reverse;
   }
 
-  /* Launcher: gradient fading background (website-style) — layer order: base < grid < neon */
+  /* Launcher: gradient fading background (website-style) — light by default, dark when .dark */
   .launcher-bg-wrap {
     position: fixed;
     inset: 0;
@@ -178,6 +178,9 @@
   .launcher-bg-base {
     position: absolute;
     inset: 0;
+    background: #fafafa;
+  }
+  .dark .launcher-bg-base {
     background: #0c0c0e;
   }
   .launcher-bg-grid {
@@ -185,11 +188,16 @@
     inset: 0;
     pointer-events: none;
     background-image:
-      linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+      linear-gradient(to right, rgba(0, 0, 0, 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 0, 0, 0.06) 1px, transparent 1px);
     background-size: 32px 32px;
     mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 25%, transparent 70%);
     -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 25%, transparent 70%);
+  }
+  .dark .launcher-bg-grid {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
   }
   .launcher-bg-neon {
     position: absolute;
@@ -202,9 +210,12 @@
     width: 55vmin;
     height: 55vmin;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(64, 247, 167, 0.12) 0%, transparent 65%);
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.14) 0%, transparent 65%);
     filter: blur(50px);
     will-change: transform;
+  }
+  .dark .launcher-bg-neon .blob {
+    background: radial-gradient(circle, rgba(64, 247, 167, 0.12) 0%, transparent 65%);
   }
   .launcher-bg-neon .blob-1 { left: 5%; top: 10%; animation: launcher-blob-1 22s ease-in-out infinite; }
   .launcher-bg-neon .blob-2 { right: 10%; top: 25%; animation: launcher-blob-2 26s ease-in-out infinite; }

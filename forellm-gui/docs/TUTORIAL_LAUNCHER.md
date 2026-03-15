@@ -20,7 +20,7 @@ npm run dev
 
 ## 2. The Launcher
 
-The launcher lets you choose how to use ForeLLM **without typing commands**:
+The launcher lets you choose how to use ForeLLM **without typing commands**. It uses the same **theme** (dark / light / system) as the GUI, so if you’ve set light mode in the dashboard, the launcher will show in light mode when you open the app or return via Home.
 
 | Option | What it does |
 |--------|----------------|
