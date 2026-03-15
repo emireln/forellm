@@ -57,7 +57,7 @@ If the `forellm` binary is not in `../target/release/forellm`, set the `FORELLM_
 | **Frontend** | React 19 + Tailwind CSS | Existing ForeLLM GUI stack; rich Markdown/code via react-markdown + react-syntax-highlighter |
 | **Desktop runtime** | Electron | Main process runs tools (web search, read file, execute Python); preload exposes IPC |
 | **LLM** | Ollama (local) | Primary backend; supports tool-calling and streaming; optional future: OpenAI-compatible API |
-| **Conversation state** | In-memory (React state) | Current: session-only; optional persistence via SQLite or JSON in app data dir |
+| **Conversation state** | In-memory (React state) + localStorage | GUI: sessions, current chat, agent/backend/model settings auto-saved (localStorage); restored on reopen or tab switch. CLI: session-only. Optional future: SQLite or JSON in app data dir. |
 | **File store** | Temp directory + in-memory map | Uploaded files written to `os.tmpdir()/forellm-agent-uploads`; metadata in Map<file_id, { path, name, mime }> |
 | **RAG (optional)** | Vector DB + embeddings | For full RAG: embed chunks (e.g. Ollama embeddings or external API), store in SQLite+vec or Chroma; retrieve and inject into context |
 | **Tool execution** | Node.js (Electron main) | web_search via fetch; read_document via fs; execute_python via child_process with timeout and env restrictions |

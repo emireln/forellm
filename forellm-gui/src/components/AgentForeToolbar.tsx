@@ -187,6 +187,8 @@ interface AgentForeToolbarProps {
   onRenameCancel: () => void
   onRenameClick: () => void
   renameDisabled: boolean
+  /** When "island", omit branding and use borderless layout for use inside the island. */
+  variant?: 'default' | 'island'
 }
 
 export function AgentForeToolbar({
@@ -218,7 +220,8 @@ export function AgentForeToolbar({
   onRenameSubmit,
   onRenameCancel,
   onRenameClick,
-  renameDisabled
+  renameDisabled,
+  variant = 'default'
 }: AgentForeToolbarProps) {
   const [openDropdown, setOpenDropdown] = useState<OpenDropdown>(null)
 
@@ -232,14 +235,21 @@ export function AgentForeToolbar({
 
   const closeAll = () => setOpenDropdown(null)
 
+  const Wrapper = variant === 'island' ? 'div' : 'header'
+  const wrapperClassName = variant === 'island'
+    ? 'flex w-full flex-wrap items-center gap-3'
+    : 'flex w-full shrink-0 items-center gap-3 border-b border-zinc-200 bg-white px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-900'
+
   return (
-    <header className="flex w-full shrink-0 items-center gap-3 border-b border-zinc-200 bg-white px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="flex items-center gap-2">
-        <Bot className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
-          Agent Fore
-        </span>
-      </div>
+    <Wrapper className={wrapperClassName}>
+      {variant !== 'island' && (
+        <div className="flex items-center gap-2">
+          <Bot className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
+            Agent Fore
+          </span>
+        </div>
+      )}
 
       {/* Export menu */}
       <div className="relative">
@@ -370,6 +380,6 @@ export function AgentForeToolbar({
           )}
         </div>
       </div>
-    </header>
+    </Wrapper>
   )
 }

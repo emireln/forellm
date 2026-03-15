@@ -6,7 +6,7 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { SystemInfo, ModelFit } from '../lib/types'
 import { cn } from '../lib/types'
 import { AGENTS, baseForellmContext } from '../lib/agentConfig'
-import { Bot, Send, Loader2, AlertCircle, User, Paperclip, X } from 'lucide-react'
+import { Bot, Send, Loader2, AlertCircle, User, Paperclip, X, ChevronDown, ChevronUp, Settings2 } from 'lucide-react'
 import { AgentForeToolbar } from './AgentForeToolbar'
 
 interface ChatMessage {
@@ -34,25 +34,98 @@ interface Props {
   loading: boolean
 }
 
+const AGENT_FORE_CACHE_KEY = 'forellm-agent-fore-cache'
+const MAX_CACHED_SESSIONS = 30
+const MAX_MESSAGES_PER_SESSION = 500
+
 function newSessionId() {
   return `chat_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
 }
 
+function loadAgentForeCache(): Partial<{
+  sessions: ChatSession[]
+  currentSessionId: string | null
+  selectedAgentId: string
+  backend: 'ollama' | 'openclaw'
+  selectedModel: string
+  openclawBaseUrl: string
+}> {
+  if (typeof window === 'undefined') return {}
+  try {
+    const raw = localStorage.getItem(AGENT_FORE_CACHE_KEY)
+    if (!raw) return {}
+    const data = JSON.parse(raw) as {
+      sessions?: Array<{ id: string; title: string; messages: ChatMessage[] }>
+      currentSessionId?: string | null
+      selectedAgentId?: string
+      backend?: 'ollama' | 'openclaw'
+      selectedModel?: string
+      openclawBaseUrl?: string
+    }
+    const sessions = data.sessions?.slice(0, MAX_CACHED_SESSIONS).map((s) => ({
+      ...s,
+      messages: (s.messages ?? []).slice(-MAX_MESSAGES_PER_SESSION)
+    }))
+    if (!sessions?.length) return {}
+    return {
+      sessions,
+      currentSessionId: data.currentSessionId ?? sessions[0]?.id ?? null,
+      selectedAgentId: data.selectedAgentId ?? 'general',
+      backend: data.backend ?? 'ollama',
+      selectedModel: data.selectedModel ?? '',
+      openclawBaseUrl: data.openclawBaseUrl ?? ''
+    }
+  } catch {
+    return {}
+  }
+}
+
+function saveAgentForeCache(payload: {
+  sessions: ChatSession[]
+  currentSessionId: string | null
+  selectedAgentId: string
+  backend: 'ollama' | 'openclaw'
+  selectedModel: string
+  openclawBaseUrl: string
+}) {
+  if (typeof window === 'undefined') return
+  try {
+    const sessions = payload.sessions.slice(0, MAX_CACHED_SESSIONS).map((s) => ({
+      id: s.id,
+      title: s.title,
+      messages: s.messages.slice(-MAX_MESSAGES_PER_SESSION)
+    }))
+    localStorage.setItem(
+      AGENT_FORE_CACHE_KEY,
+      JSON.stringify({
+        sessions,
+        currentSessionId: payload.currentSessionId,
+        selectedAgentId: payload.selectedAgentId,
+        backend: payload.backend,
+        selectedModel: payload.selectedModel,
+        openclawBaseUrl: payload.openclawBaseUrl
+      })
+    )
+  } catch {
+    // ignore quota or parse errors
+  }
+}
+
 export function AgentFore({ system, models, contextLength }: Props) {
-  const [sessions, setSessions] = useState<ChatSession[]>(() => [
-    { id: newSessionId(), title: 'New chat', messages: [] }
-  ])
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(() => null)
+  const cached = loadAgentForeCache()
+  const [sessions, setSessions] = useState<ChatSession[]>(() => cached.sessions ?? [{ id: newSessionId(), title: 'New chat', messages: [] }])
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(() => cached.currentSessionId ?? null)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
-  const [backend, setBackend] = useState<'ollama' | 'openclaw'>('ollama')
+  const [backend, setBackend] = useState<'ollama' | 'openclaw'>(() => cached.backend ?? 'ollama')
   const [ollamaModels, setOllamaModels] = useState<string[]>([])
   const [ollamaError, setOllamaError] = useState<string | null>(null)
   const [openclawModels, setOpenclawModels] = useState<string[]>([])
   const [openclawError, setOpenclawError] = useState<string | null>(null)
-  const [openclawBaseUrl, setOpenclawBaseUrl] = useState('')
-  const [selectedModel, setSelectedModel] = useState('')
-  const [selectedAgentId, setSelectedAgentId] = useState('general')
+  const [openclawBaseUrl, setOpenclawBaseUrl] = useState(() => cached.openclawBaseUrl ?? '')
+  const [selectedModel, setSelectedModel] = useState(() => cached.selectedModel ?? '')
+  const [selectedAgentId, setSelectedAgentId] = useState(() => cached.selectedAgentId ?? 'general')
+  const [toolbarOpen, setToolbarOpen] = useState(false)
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
   const [inputDragOver, setInputDragOver] = useState(false)
   const [showRenameInput, setShowRenameInput] = useState(false)
@@ -62,6 +135,21 @@ export function AgentFore({ system, models, contextLength }: Props) {
   const streamingBufferRef = useRef('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const bgRef = useRef<HTMLDivElement>(null)
+  const [mouseBg, setMouseBg] = useState<{ x: number; y: number } | null>(null)
+
+  function handleBgMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    const el = bgRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    setMouseBg({
+      x: (e.clientX - rect.left) / rect.width,
+      y: (e.clientY - rect.top) / rect.height
+    })
+  }
+  function handleBgMouseLeave() {
+    setMouseBg(null)
+  }
 
   const currentSession = currentSessionId
     ? sessions.find((s) => s.id === currentSessionId)
@@ -124,6 +212,43 @@ export function AgentFore({ system, models, contextLength }: Props) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, streamingContent])
 
+  // When restored from cache (or after delete), ensure currentSessionId points to an existing session
+  useEffect(() => {
+    if (sessions.length === 0) return
+    const exists = currentSessionId && sessions.some((s) => s.id === currentSessionId)
+    if (!exists && sessions[0]) setCurrentSessionId(sessions[0].id)
+  }, [sessions, currentSessionId])
+
+  // Auto-save agent chat and settings to localStorage (debounced) and on unload
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      saveAgentForeCache({
+        sessions,
+        currentSessionId,
+        selectedAgentId,
+        backend,
+        selectedModel,
+        openclawBaseUrl
+      })
+    }, 800)
+    return () => clearTimeout(timer)
+  }, [sessions, currentSessionId, selectedAgentId, backend, selectedModel, openclawBaseUrl])
+
+  useEffect(() => {
+    const onBeforeUnload = () => {
+      saveAgentForeCache({
+        sessions,
+        currentSessionId,
+        selectedAgentId,
+        backend,
+        selectedModel,
+        openclawBaseUrl
+      })
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [sessions, currentSessionId, selectedAgentId, backend, selectedModel, openclawBaseUrl])
+
   /** Remove raw tool-call lines echoed by the model (e.g. read_document { "file_id": "..." }) so the bubble stays clean. */
   function stripToolCallEchoes(content: string): string {
     const toolNames = ['read_document', 'web_search', 'execute_python', 'run_command', 'analyze_image']
@@ -133,6 +258,27 @@ export function AgentFore({ system, models, contextLength }: Props) {
       .split('\n')
       .filter((line) => !line.match(lineRe) && !line.match(toolCallLineRe))
     return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+  }
+
+  /**
+   * Replace raw <execute_python>{ "code": "..." }</execute_python> (or similar) in displayed content
+   * with a markdown fenced code block so code shows with proper line breaks and IDE-like formatting.
+   */
+  function formatExecutePythonBlocks(content: string): string {
+    const tagRe = /<execute_python>([\s\S]*?)<\/execute_python>/gi
+    return content.replace(tagRe, (_, inner) => {
+      const trimmed = inner.trim()
+      let code = trimmed
+      if (trimmed.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(trimmed) as { code?: string }
+          if (typeof parsed?.code === 'string') code = parsed.code
+        } catch {
+          // leave code as trimmed
+        }
+      }
+      return '\n```python\n' + code + '\n```\n'
+    })
   }
 
   function exportChat(format: 'markdown' | 'txt', includeToolCalls: boolean) {
@@ -446,42 +592,117 @@ export function AgentFore({ system, models, contextLength }: Props) {
   const canSend = input.trim().length > 0 && (selectedModel || (backend === 'openclaw' ? openclawModels[0] : ollamaModels[0])) && !sending
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-950">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-transparent to-cyan-500/15 dark:from-emerald-500/25 dark:via-transparent dark:to-cyan-500/20" aria-hidden />
+    <div
+      ref={bgRef}
+      onMouseMove={handleBgMouseMove}
+      onMouseLeave={handleBgMouseLeave}
+      className="relative flex h-full w-full flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-950"
+    >
+      {/* Emerald-only gradient */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-emerald-500/8 to-transparent dark:from-emerald-500/25 dark:via-emerald-500/12 dark:to-transparent" aria-hidden />
+      {/* Wavy background: moves with mouse; viewBox/path extended so no clip at edges */}
+      <div
+        className="pointer-events-none absolute -inset-[30%] opacity-40 dark:opacity-30 transition-transform duration-200 ease-out"
+        aria-hidden
+        style={{
+          transform: mouseBg
+            ? `translate(${(mouseBg.x - 0.5) * 28}px, ${(mouseBg.y - 0.5) * 28}px)`
+            : 'translate(0, 0)'
+        }}
+      >
+        <svg className="agent-fore-wave absolute inset-0 h-full w-full" viewBox="-80 -40 820 440" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="agent-fore-wave-green" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="rgb(16 185 129)" stopOpacity="0.5" />
+              <stop offset="100%" stopColor="rgb(16 185 129)" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path fill="url(#agent-fore-wave-green)" d="M-80 120 Q0 80 120 120 T320 120 T520 120 T720 120 V400 H-80 Z" />
+        </svg>
+        <svg className="agent-fore-wave-slow absolute inset-0 h-full w-full" viewBox="-80 -40 820 440" preserveAspectRatio="none">
+          <path fill="url(#agent-fore-wave-green)" d="M-80 140 Q0 100 120 140 T320 140 T520 140 T720 140 V400 H-80 Z" opacity="0.6" />
+        </svg>
+      </div>
       <div className="relative flex min-h-0 flex-1 flex-col">
-      <AgentForeToolbar
-        agentId={selectedAgentId}
-        onAgentChange={setSelectedAgentId}
-        backend={backend}
-        onBackendChange={(b) => { setBackend(b); setSelectedModel('') }}
-        openclawBaseUrl={openclawBaseUrl}
-        onOpenClawBaseUrlChange={setOpenclawBaseUrl}
-        selectedModel={selectedModel}
-        onModelChange={setSelectedModel}
-        ollamaModels={ollamaModels}
-        openclawModels={openclawModels}
-        ollamaError={ollamaError}
-        openclawError={openclawError}
-        onExport={exportChat}
-        exportDisabled={messages.length === 0}
-        sessions={sessions.map((s) => ({ id: s.id, title: s.title }))}
-        currentSessionId={currentSessionId}
-        onSessionSelect={setCurrentSessionId}
-        onNewChat={startNewChat}
-        onResetChat={resetChat}
-        onRemoveChat={removeCurrentChat}
-        resetDisabled={!currentSession || messages.length === 0}
-        removeDisabled={!currentSession}
-        showRenameInput={showRenameInput}
-        renameValue={renameValue}
-        onRenameValueChange={setRenameValue}
-        onRenameSubmit={saveRename}
-        onRenameCancel={() => setShowRenameInput(false)}
-        onRenameClick={startRename}
-        renameDisabled={!currentSession}
-      />
+        {/* Floating island: out of flow so chat uses full height; click outside to close */}
+        <div className="absolute left-0 right-0 top-0 z-20 flex justify-center pt-3 px-4 pointer-events-none">
+          {toolbarOpen && (
+            <div
+              className="fixed inset-0 z-20 pointer-events-auto bg-black/20 dark:bg-black/30 backdrop-blur-[1px]"
+              aria-hidden
+              onClick={() => setToolbarOpen(false)}
+              role="presentation"
+            />
+          )}
+          <div
+            className={cn(
+              'pointer-events-auto relative z-30 flex items-center rounded-xl border shadow-xl transition-shadow',
+              'border-zinc-300/90 bg-white/90 dark:border-zinc-600/90 dark:bg-zinc-800/90',
+              'backdrop-blur-md',
+              toolbarOpen ? 'w-full max-w-4xl flex-wrap items-center gap-3 px-4 py-2.5' : 'py-2 px-3'
+            )}
+          >
+            {toolbarOpen ? (
+              <>
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+                  <AgentForeToolbar
+                    agentId={selectedAgentId}
+                    onAgentChange={setSelectedAgentId}
+                    backend={backend}
+                    onBackendChange={(b) => { setBackend(b); setSelectedModel('') }}
+                    openclawBaseUrl={openclawBaseUrl}
+                    onOpenClawBaseUrlChange={setOpenclawBaseUrl}
+                    selectedModel={selectedModel}
+                    onModelChange={setSelectedModel}
+                    ollamaModels={ollamaModels}
+                    openclawModels={openclawModels}
+                    ollamaError={ollamaError}
+                    openclawError={openclawError}
+                    onExport={exportChat}
+                    exportDisabled={messages.length === 0}
+                    sessions={sessions.map((s) => ({ id: s.id, title: s.title }))}
+                    currentSessionId={currentSessionId}
+                    onSessionSelect={setCurrentSessionId}
+                    onNewChat={startNewChat}
+                    onResetChat={resetChat}
+                    onRemoveChat={removeCurrentChat}
+                    resetDisabled={!currentSession || messages.length === 0}
+                    removeDisabled={!currentSession}
+                    showRenameInput={showRenameInput}
+                    renameValue={renameValue}
+                    onRenameValueChange={setRenameValue}
+                    onRenameSubmit={saveRename}
+                    onRenameCancel={() => setShowRenameInput(false)}
+                    onRenameClick={startRename}
+                    renameDisabled={!currentSession}
+                    variant="island"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setToolbarOpen(false)}
+                  className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-700 dark:hover:text-zinc-300"
+                  title="Hide controls"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setToolbarOpen(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-zinc-300/80 bg-white/90 px-3 py-2 text-xs font-medium text-zinc-600 shadow-md transition hover:border-zinc-400 hover:bg-white dark:border-zinc-600 dark:bg-zinc-800/90 dark:text-zinc-400 dark:hover:border-zinc-500 dark:hover:bg-zinc-800"
+                title="Show controls"
+              >
+                <Settings2 className="h-3.5 w-3.5" />
+                Controls
+                <ChevronUp className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
 
-      {(backend === 'ollama' ? ollamaError : openclawError) && (
+        {(backend === 'ollama' ? ollamaError : openclawError) && (
         <div className="flex shrink-0 items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{backend === 'ollama' ? ollamaError : openclawError}</span>
@@ -491,10 +712,10 @@ export function AgentFore({ system, models, contextLength }: Props) {
         </div>
       )}
 
-      {/* Chat history */}
+      {/* Chat history - full height; top padding so floating Controls pill doesn't cover first line */}
       <div
         ref={scrollRef}
-        className="min-h-0 flex-1 overflow-y-auto p-4 space-y-4"
+        className="min-h-0 flex-1 overflow-y-auto p-4 pt-14 space-y-4"
       >
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-zinc-600 dark:text-zinc-500">
@@ -511,7 +732,9 @@ export function AgentFore({ system, models, contextLength }: Props) {
             const rawAssistantContent =
               assistantWithButtons && assistantWithButtons.buttons.length > 0 ? assistantWithButtons.content : stripToolCallEchoes(msg.content)
             const displayContent =
-              msg.role === 'assistant' ? (rawAssistantContent || '…') : msg.content
+              msg.role === 'assistant'
+                ? formatExecutePythonBlocks(rawAssistantContent || '…')
+                : msg.content
             const buttons = assistantWithButtons?.buttons ?? []
             return (
               <div key={i} className={cn('flex gap-3', msg.role === 'user' ? 'justify-end' : 'justify-start')}>

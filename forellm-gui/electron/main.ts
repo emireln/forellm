@@ -1428,7 +1428,7 @@ function createWindow(): void {
 
   mainWindow.setTitle('ForeLLM')
 
-  // System tray: use same icon; minimize hides window to tray, tray click restores
+  // System tray: close button hides to tray; minimize minimizes normally to taskbar
   if (tray) tray.destroy()
   const trayIcon = nativeImage.createFromPath(iconPath)
   if (!trayIcon.isEmpty()) {
@@ -1448,9 +1448,6 @@ function createWindow(): void {
     tray.setContextMenu(trayMenu)
   }
 
-  mainWindow.on('minimize', () => {
-    if (mainWindow && !mainWindow.isDestroyed() && tray) mainWindow.hide()
-  })
   mainWindow.on('close', (event) => {
     if (!quitting && tray) {
       event.preventDefault()
