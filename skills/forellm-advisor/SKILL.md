@@ -15,13 +15,7 @@ metadata:
               "formula": "forellm",
               "bins": ["forellm"],
               "label": "Install ForeLLM (brew)",
-            },
-            {
-              "id": "cargo",
-              "kind": "node",
-              "bins": ["forellm"],
-              "label": "Install ForeLLM (cargo install forellm)",
-            },
+            }
           ],
       },
   }
@@ -56,7 +50,7 @@ Also use this skill when:
 ### Detect hardware
 
 ```bash
-forellm --json system
+forellm system --json
 ```
 
 Returns JSON with CPU, RAM, GPU name, VRAM, multi-GPU info, and whether memory is unified (Apple Silicon).
@@ -119,8 +113,8 @@ Each model in the `models` array includes:
 | `params_b` | Parameter count in billions |
 | `score` | Composite score 0–100 (higher is better) |
 | `score_components` | Breakdown: `quality`, `speed`, `fit`, `context` (each 0–100) |
-| `fit_level` | `Perfect`, `Good`, `Marginal`, or `TooTight` |
-| `run_mode` | `GPU`, `CPU+GPU Offload`, or `CPU` |
+| `fit_level` | `Perfect`, `Good`, `Marginal`, or `Too Tight` (JSON string from ForeLLM) |
+| `run_mode` | `GPU`, `CPU+GPU`, `CPU`, or `MoE` (short label; MoE = Mixture of Experts offload) |
 | `category` | Model category (e.g. `Reasoning`, `Coding`, `Chat`, `Embedding`) |
 | `is_moe` | Whether the model uses Mixture of Experts architecture |
 | `parameter_count` | Human-readable param count string (e.g. `"7.6B"`) |
@@ -132,19 +126,24 @@ Each model in the `models` array includes:
 | `utilization_pct` | How much of available memory the model uses |
 | `use_case` | What the model is designed for |
 | `context_length` | Maximum context window |
+| `release_date` | Optional; model release date if known |
+| `runtime` | Optional; e.g. `llamacpp`, `mlx` |
+| `runtime_label` | Human-readable runtime name |
+| `gguf_sources` | Optional; HuggingFace GGUF repo hints for download |
 
 ### Fit levels explained
 
 - **Perfect**: Model fits comfortably with room to spare. Ideal choice.
 - **Good**: Model fits but uses most available memory. Will work well.
 - **Marginal**: Model barely fits. May work but expect slower performance or reduced context.
-- **TooTight**: Model does not fit. Do not recommend.
+- **Too Tight**: Model does not fit (JSON value: `"Too Tight"`). Do not recommend.
 
 ### Run modes explained
 
-- **GPU**: Full GPU inference. Fastest. Model weights loaded entirely into VRAM.
-- **CPU+GPU Offload**: Some layers on GPU, rest in system RAM. Slower than pure GPU.
-- **CPU**: All inference on CPU using system RAM. Slowest but works without GPU.
+- **GPU** (`run_mode: "GPU"`): Full GPU inference. Fastest. Model weights loaded entirely into VRAM.
+- **CPU+GPU** (`run_mode: "CPU+GPU"`): Some layers on GPU, rest in system RAM. Slower than pure GPU.
+- **CPU** (`run_mode: "CPU"`): All inference on CPU using system RAM. Slowest but works without GPU.
+- **MoE** (`run_mode: "MoE"`): Mixture of Experts with offload; some experts on GPU, rest on CPU.
 
 ## Configuring OpenClaw with results
 
@@ -217,8 +216,9 @@ When a user asks for a specific use case like "recommend a coding model":
 
 ## Notes
 
+- **Install:** The skill metadata offers the Homebrew installer. Users can also install with `cargo install forellm` or build from source (`cargo build --release` in the ForeLLM repo); ensure `forellm` is on PATH or set `FORELLM_PATH`.
 - ForeLLM detects NVIDIA GPUs (via nvidia-smi), AMD GPUs (via rocm-smi), and Apple Silicon (unified memory).
 - Multi-GPU setups aggregate VRAM across cards automatically.
 - The `best_quant` field tells you the optimal quantization — higher quant (Q6_K, Q8_0) means better quality if VRAM allows.
 - Speed estimates (`estimated_tps`) are approximate and vary by hardware and quantization.
-- Models with `fit_level: "TooTight"` should never be recommended to users.
+- Models with `fit_level: "Too Tight"` should never be recommended to users.
