@@ -87,32 +87,109 @@
     @apply inline-block h-1.5 w-1.5 rounded-full;
   }
   .fit-perfect {
-    @apply border-emerald-500/30 bg-emerald-500/10 text-emerald-400;
+    @apply border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400;
   }
   .fit-good {
-    @apply border-cyan-500/30 bg-cyan-500/10 text-cyan-400;
+    @apply border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-400;
   }
   .fit-marginal {
-    @apply border-amber-500/30 bg-amber-500/10 text-amber-400;
+    @apply border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400;
   }
   .fit-tight {
-    @apply border-red-500/30 bg-red-500/10 text-red-400;
+    @apply border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400;
   }
 
-  /* Agent Fore dropdowns: match app (rounded, dark, emerald), no blue */
+  /* Agent Fore dropdowns: light and dark theme */
   .agent-fore-select {
-    @apply rounded-lg border border-zinc-700 bg-zinc-900/95 py-2 pl-3 pr-8 text-xs text-zinc-200 shadow-sm outline-none transition;
+    @apply rounded-lg border py-2 pl-3 pr-8 text-xs shadow-sm outline-none transition;
+    @apply border-zinc-300 bg-white text-zinc-800 placeholder:text-zinc-500;
     @apply focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20;
-    @apply hover:border-zinc-600;
+    @apply hover:border-zinc-400;
+    @apply dark:border-zinc-700 dark:bg-zinc-900/95 dark:text-zinc-200 dark:placeholder:text-zinc-500 dark:hover:border-zinc-600;
     accent-color: #10b981;
     appearance: none;
-    color-scheme: dark;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.5rem center;
   }
+  .dark .agent-fore-select {
+    color-scheme: dark;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
   .agent-fore-select option {
+    background-color: #ffffff;
+    color: #18181b;
+  }
+  .dark .agent-fore-select option {
     background-color: #18181b;
     color: #e4e4e7;
+  }
+
+  /* Launcher: gradient fading background (website-style) — layer order: base < grid < neon */
+  .launcher-bg-wrap {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .launcher-bg-base {
+    position: absolute;
+    inset: 0;
+    background: #0c0c0e;
+  }
+  .launcher-bg-grid {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 25%, transparent 70%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 25%, transparent 70%);
+  }
+  .launcher-bg-neon {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .launcher-bg-neon .blob {
+    position: absolute;
+    width: 55vmin;
+    height: 55vmin;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(64, 247, 167, 0.12) 0%, transparent 65%);
+    filter: blur(50px);
+    will-change: transform;
+  }
+  .launcher-bg-neon .blob-1 { left: 5%; top: 10%; animation: launcher-blob-1 22s ease-in-out infinite; }
+  .launcher-bg-neon .blob-2 { right: 10%; top: 25%; animation: launcher-blob-2 26s ease-in-out infinite; }
+  .launcher-bg-neon .blob-3 { left: 30%; bottom: 15%; animation: launcher-blob-3 20s ease-in-out infinite; }
+  .launcher-bg-neon .blob-4 { right: 20%; bottom: 30%; animation: launcher-blob-4 24s ease-in-out infinite; }
+  .launcher-bg-neon .blob-5 { left: 50%; top: 50%; transform: translate(-50%, -50%); animation: launcher-blob-5 28s ease-in-out infinite; }
+  @keyframes launcher-blob-1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(15px, -20px) scale(1.05); }
+    66% { transform: translate(-10px, 15px) scale(0.98); }
+  }
+  @keyframes launcher-blob-2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(-25px, 10px) scale(0.96); }
+    66% { transform: translate(18px, -15px) scale(1.04); }
+  }
+  @keyframes launcher-blob-3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-20px, -12px) scale(1.03); }
+  }
+  @keyframes launcher-blob-4 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(12px, 22px) scale(0.97); }
+  }
+  @keyframes launcher-blob-5 {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    33% { transform: translate(calc(-50% + 20px), calc(-50% - 15px)) scale(1.06); }
+    66% { transform: translate(calc(-50% - 12px), calc(-50% + 18px)) scale(0.95); }
   }
 }

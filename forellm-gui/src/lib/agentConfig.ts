@@ -54,7 +54,7 @@ export interface AgentDefinition {
 /** Rich ForeLLM + models knowledge so the agent stays updated on commands, fit, run modes, and the app. */
 export const forellmKnowledge = `
 ## ForeLLM overview
-ForeLLM is a Rust CLI/TUI/GUI tool that matches LLM models to local hardware (RAM, CPU, GPU). It detects system specs, loads a model database (data/hf_models.json, embedded at compile time), scores each model's fit, and presents results in the TUI, GUI, or classic table (--cli). The GUI includes Agent Fore chat (Ollama); ForeLLM recommends which models fit—it does not run inference itself. Binary: forellm (Windows: forellm.exe). Build: cargo build --release from repo root; binary at target/release/forellm (or target/debug). If not on PATH, set FORELLM_PATH to the binary path; Agent Fore CLI and run_command resolve forellm automatically when the binary is in target/release or target/debug.
+ForeLLM was created by Emir Lima (Instagram: @limavvs). ForeLLM is a Rust CLI/TUI/GUI tool that matches LLM models to local hardware (RAM, CPU, GPU). It detects system specs, loads a model database (data/hf_models.json, embedded at compile time), scores each model's fit, and presents results in the TUI, GUI, or classic table (--cli). The GUI includes Agent Fore chat (Ollama); ForeLLM recommends which models fit—it does not run inference itself. Binary: forellm (Windows: forellm.exe). Build: cargo build --release from repo root; binary at target/release/forellm (or target/debug). If not on PATH, set FORELLM_PATH to the binary path; Agent Fore CLI and run_command resolve forellm automatically when the binary is in target/release or target/debug.
 
 ---
 
@@ -190,6 +190,11 @@ Q2_K, Q3_K_M, Q4_K_M (default), Q5_K_M, Q6_K, Q8_0, FP16. Lower bits = smaller, 
 
 ---
 
+## Desktop GUI (Model Explorer and Agent Fore)
+- **Theme:** Dark / light / system toggle in the title bar; preference is saved.
+- **Model Explorer:** Per model: copy run command, download (forellm download), and **link to Hugging Face** (opens the model card in the browser). No cart; do not suggest adding models to a cart.
+- **Agent Fore (in-app):** **Export chat** — users can export the current conversation as Markdown or TXT (with or without tool calls) from the toolbar Export menu.
+
 ## Agent Fore (GUI and CLI)
 Same behavior in desktop GUI (Agent Fore tab) and CLI. Ollama provides inference; agents have tools: read_document, web_search, execute_python, run_command (user confirms Allow? [y/N]). Commands run in user's current working directory; forellm is resolved to target/release or target/debug when not on PATH. To run any forellm or shell command the agent MUST call the run_command tool with the exact command—saying in text "I will run it" does not execute anything; only a run_command tool call triggers the Allow? prompt and execution.
 
@@ -231,6 +236,18 @@ Agent can end a message with "BUTTONS: Yes, No" or "BUTTONS: Option1, Option2" t
 - Run model: forellm run <model> [--server --port 8080].
 - Start API server: forellm serve --port 8787.
 - Ollama: ollama run <model> to run a model; forellm fit/recommend help pick one.
+
+---
+
+## Agent behavior and guidelines
+- Be concise unless the user asks for detail. Prefer short, actionable answers.
+- Only suggest forellm subcommands and flags that are documented above. If asked about a feature or flag you are not sure exists, suggest running \`forellm --help\` or \`forellm <subcommand> --help\` instead of guessing.
+- When the user asks "what's my hardware?", "do I have enough VRAM?", or "what can I run?", offer to run \`forellm system --json\` or \`forellm fit --json\` (via run_command or <run_command>) so they get live data; do not only describe in text.
+- ForeLLM does not run inference. Ollama (or llama.cpp via forellm run) runs the models. To actually run a model: use \`ollama run <model>\` (Ollama) or \`forellm run <model>\` (llama.cpp). ForeLLM fit/recommend tells the user which models fit their machine—then they run one with Ollama or forellm run.
+- run_command always requires user confirmation (Allow? [y/N]). Never assume a command was executed until the user has confirmed. Do not say "I have run X" unless the user already confirmed; say "I can run X—allow when prompted" or "Run this: ... (you will be asked Allow? [y/N])."
+- If the user writes in a specific language (e.g. Portuguese, Spanish), reply in that language unless they ask for English.
+- When using web_search (Web Researcher), cite or summarize sources clearly. Do not present search results as your own claims.
+- If a suggested forellm command fails (e.g. "not found"), remind the user to install the binary (cargo build --release, or scoop/brew), set FORELLM_PATH, or run from the repo directory.
 `.trim()
 
 export const baseForellmContext = `

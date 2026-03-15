@@ -5,4 +5,6 @@ forellm-desktop/gen/schemas/*
 data/gguf_sources_cache.json
 forellm-gui/node_modules
 forellm-gui/out
+forellm-gui/release-build
+forellm-gui/release
 /dist

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, shell, Tray, nativeImage } from 'electron'
 import { spawn } from 'child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
@@ -7,6 +7,8 @@ import { is } from '@electron-toolkit/utils'
 import { randomUUID } from 'crypto'
 
 let mainWindow: BrowserWindow | null = null
+let tray: Tray | null = null
+let quitting = false
 
 const agentUploadsDir = path.join(tmpdir(), 'forellm-agent-uploads')
 const fileStore = new Map<string, { path: string; name: string; mime: string }>()
@@ -203,9 +205,16 @@ async function agentExecutePython(
 }
 
 function findBinary(): string {
+  const ext = process.platform === 'win32' ? '.exe' : ''
+
+  // Packaged app: use forellm binary bundled in resources (no PATH/FORELLM_PATH required)
+  if (!is.dev && process.resourcesPath) {
+    const bundled = path.join(process.resourcesPath, `forellm${ext}`)
+    if (existsSync(bundled)) return bundled
+  }
+
   if (process.env.FORELLM_PATH) return process.env.FORELLM_PATH
 
-  const ext = process.platform === 'win32' ? '.exe' : ''
   const guiDir = path.resolve(__dirname, '..', '..')
   const projectRoot = path.resolve(guiDir, '..')
 
@@ -231,7 +240,7 @@ function resolveForellmInCommand(cmd: string): string {
   return cmd
 }
 
-function execForellm(args: string[]): Promise<unknown> {
+function execForellm(args: string[], timeoutMs = 25_000): Promise<unknown> {
   const binary = findBinary()
 
   return new Promise((resolve, reject) => {
@@ -253,8 +262,8 @@ function execForellm(args: string[]): Promise<unknown> {
 
     const timer = setTimeout(() => {
       proc.kill()
-      reject(new Error('forellm timed out after 30 seconds'))
-    }, 30_000)
+      reject(new Error(`forellm timed out after ${timeoutMs / 1000}s`))
+    }, timeoutMs)
 
     proc.on('close', (code) => {
       clearTimeout(timer)
@@ -343,7 +352,7 @@ function runForellmDownload(
 
 function registerIpc(): void {
   ipcMain.handle('forellm:system', async () => {
-    return execForellm(['system', '--json'])
+    return execForellm(['system', '--json'], 60_000)
   })
 
   ipcMain.handle(
@@ -371,7 +380,13 @@ function registerIpc(): void {
       if (opts?.fitAll !== false) args.push('--fit', 'all')
       if (opts?.limit) args.push('-n', String(opts.limit))
       if (opts?.sort) args.push('--sort', opts.sort)
-      return execForellm(args)
+      // Full list (no limit) can be 500+ models; allow up to 2 min. Limited batches use shorter timeout.
+      const timeout = opts?.limit
+        ? opts.limit <= 100
+          ? 20_000
+          : 45_000
+        : 120_000
+      return execForellm(args, timeout)
     }
   )
 
@@ -1293,22 +1308,106 @@ function registerIpc(): void {
   ipcMain.handle('window:isMaximized', () => {
     return mainWindow != null && !mainWindow.isDestroyed() && mainWindow.isMaximized()
   })
+
+  /** Launcher: return { runAgentAvailable, runCliHint } for UI (e.g. disable Run Agent when packaged). */
+  ipcMain.handle('launcher:getCapabilities', () => {
+    const isPackaged = app.isPackaged
+    const binary = findBinary()
+    const cliAvailable = path.isAbsolute(binary) || binary === 'forellm' || binary === 'forellm.exe'
+    return {
+      runAgentAvailable: !isPackaged,
+      runCliHint: isPackaged && !path.isAbsolute(binary)
+        ? 'Requires forellm on PATH or set FORELLM_PATH'
+        : undefined
+    }
+  })
+
+  /** Launcher: open a new terminal running Agent Fore CLI (npm run agent). Only works when not packaged. */
+  ipcMain.handle('launcher:runAgent', () => {
+    if (app.isPackaged) {
+      return { ok: false, error: 'Run Agent in Terminal is only available when running from source (npm run dev).' }
+    }
+    try {
+      const guiDir = path.resolve(__dirname, '..', '..')
+      setImmediate(() => {
+        try {
+          if (process.platform === 'win32') {
+            const p = spawn('cmd', ['/c', 'start', '""', '/D', guiDir, 'cmd', '/k', 'npm run agent'], { detached: true, stdio: 'ignore', windowsHide: false })
+            p.on('error', () => {})
+            p.unref()
+          } else if (process.platform === 'darwin') {
+            const p = spawn('osascript', ['-e', `tell application "Terminal" to do script "cd '${guiDir.replace(/'/g, "'\\\\''")}' && npm run agent"`], { detached: true, stdio: 'ignore' })
+            p.on('error', () => {})
+            p.unref()
+          } else {
+            const p = spawn('x-terminal-emulator', ['-e', `cd "${guiDir}" && npm run agent; exec bash`], { detached: true, stdio: 'ignore' })
+            p.on('error', () => {
+              try {
+                spawn('gnome-terminal', ['--', 'bash', '-c', `cd "${guiDir}" && npm run agent; exec bash`], { detached: true, stdio: 'ignore' }).unref()
+              } catch {
+                /* ignore */
+              }
+            })
+            p.unref()
+          }
+        } catch {
+          /* ignore */
+        }
+      })
+    } catch {
+      return { ok: false, error: 'Failed to start terminal.' }
+    }
+    return { ok: true }
+  })
+
+  /** Launcher: return the command to run ForeLLM CLI. No spawn — avoids Windows slowness/EPIPE; user copies and runs in their own terminal. */
+  ipcMain.handle('launcher:runCli', () => {
+    const binary = findBinary()
+    const isPackaged = app.isPackaged
+    const hasAbsoluteBinary = path.isAbsolute(binary)
+    if (isPackaged && !hasAbsoluteBinary) {
+      return {
+        ok: false,
+        error:
+          'ForeLLM CLI not found. Install the Rust forellm binary and add to PATH or set FORELLM_PATH. See the tutorial below.'
+      }
+    }
+    // Return the runnable command: "forellm" when on PATH, or full path (quoted if spaces) when bundled
+    const command =
+      hasAbsoluteBinary
+        ? (binary.includes(' ') ? `"${binary}"` : binary)
+        : 'forellm'
+    return { ok: true, command }
+  })
 }
 
 function createWindow(): void {
+  // Windows: App User Model ID so taskbar jumplist and pinned icon use our name/icon.
+  // In dev (electron.exe) the taskbar may still show "Electron"; the built installer (ForeLLM.exe) shows "ForeLLM".
+  if (process.platform === 'win32' && app.setAppUserModelId) {
+    app.setAppUserModelId('com.emireln.forellm')
+  }
+
   const guiRoot = path.resolve(__dirname, '..', '..')
   const repoRoot = path.join(guiRoot, '..')
-  const publicLogo = path.join(guiRoot, 'public', 'forellm.png')
-  const repoAssetsLogo = path.join(repoRoot, 'assets', 'forellm.png')
+  const publicPng = path.join(guiRoot, 'public', 'forellm.png')
+  const repoAssetsPng = path.join(repoRoot, 'assets', 'forellm.png')
+  const repoAssetsIco = path.join(repoRoot, 'assets', 'forellm.ico')
+  // Prefer .ico on Windows for taskbar/executable; otherwise .png
   const iconPath =
-    existsSync(publicLogo) ? publicLogo
-    : existsSync(repoAssetsLogo) ? repoAssetsLogo
-    : publicLogo
+    process.platform === 'win32' && existsSync(repoAssetsIco)
+      ? repoAssetsIco
+      : existsSync(publicPng)
+        ? publicPng
+        : existsSync(repoAssetsPng)
+          ? repoAssetsPng
+          : publicPng
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
     minWidth: 1024,
     minHeight: 700,
+    resizable: true,
     backgroundColor: '#09090b',
     icon: iconPath,
     frame: false,
@@ -1327,7 +1426,42 @@ function createWindow(): void {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
 
+  mainWindow.setTitle('ForeLLM')
+
+  // System tray: use same icon; minimize hides window to tray, tray click restores
+  if (tray) tray.destroy()
+  const trayIcon = nativeImage.createFromPath(iconPath)
+  if (!trayIcon.isEmpty()) {
+    tray = new Tray(trayIcon)
+    tray.setToolTip('ForeLLM')
+    tray.on('click', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.show()
+        mainWindow.focus()
+      }
+    })
+    const trayMenu = Menu.buildFromTemplate([
+      { label: 'Show ForeLLM', click: () => { if (mainWindow && !mainWindow.isDestroyed()) { mainWindow.show(); mainWindow.focus() } } },
+      { type: 'separator' },
+      { label: 'Quit', click: () => { quitting = true; app.quit() } }
+    ])
+    tray.setContextMenu(trayMenu)
+  }
+
+  mainWindow.on('minimize', () => {
+    if (mainWindow && !mainWindow.isDestroyed() && tray) mainWindow.hide()
+  })
+  mainWindow.on('close', (event) => {
+    if (!quitting && tray) {
+      event.preventDefault()
+      mainWindow?.hide()
+    }
+  })
   mainWindow.on('closed', () => {
+    if (tray) {
+      tray.destroy()
+      tray = null
+    }
     mainWindow = null
   })
   mainWindow.on('maximize', () => {

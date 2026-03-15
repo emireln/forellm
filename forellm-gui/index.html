@@ -1,6 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
+  <script>
+    (function() {
+      var t = localStorage.getItem('forellm-theme');
+      if (t === 'light') document.documentElement.classList.remove('dark');
+      else if (t === 'system') {
+        document.documentElement.classList.toggle('dark', !window.matchMedia('(prefers-color-scheme: light)').matches);
+      }
+    })();
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ForeLLM</title>

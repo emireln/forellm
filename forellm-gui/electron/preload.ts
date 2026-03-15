@@ -112,6 +112,12 @@ export interface ForellmAPI {
   agentWebSearch: (query: string) => Promise<{ success: boolean; content?: string; error?: string }>
   agentExecutePython: (code: string) => Promise<{ success: boolean; stdout?: string; stderr?: string; error?: string }>
   agentRunCommand: (command: string) => Promise<{ success: boolean; stdout?: string; stderr?: string; error?: string }>
+  /** Launcher: capabilities (e.g. runAgent only when not packaged). */
+  getLauncherCapabilities: () => Promise<{ runAgentAvailable: boolean; runCliHint?: string }>
+  /** Launcher: open a new terminal running Agent Fore CLI (npm run agent). Returns { ok, error } when packaged. */
+  launchAgent: () => Promise<{ ok: boolean; error?: string }>
+  /** Launcher: get command to run ForeLLM CLI (no spawn). Returns { ok, command? } to copy and run in terminal. */
+  launchCli: () => Promise<{ ok: boolean; error?: string; command?: string }>
 }
 
 const api: ForellmAPI = {
@@ -146,7 +152,10 @@ const api: ForellmAPI = {
   agentReadDocument: (fileId) => ipcRenderer.invoke('agent:readDocument', fileId),
   agentWebSearch: (query) => ipcRenderer.invoke('agent:webSearch', query),
   agentExecutePython: (code) => ipcRenderer.invoke('agent:executePython', code),
-  agentRunCommand: (command) => ipcRenderer.invoke('agent:runCommand', command)
+  agentRunCommand: (command) => ipcRenderer.invoke('agent:runCommand', command),
+  getLauncherCapabilities: () => ipcRenderer.invoke('launcher:getCapabilities'),
+  launchAgent: () => ipcRenderer.invoke('launcher:runAgent'),
+  launchCli: () => ipcRenderer.invoke('launcher:runCli')
 }
 
 contextBridge.exposeInMainWorld('forellm', api)

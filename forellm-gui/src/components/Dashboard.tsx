@@ -1,30 +1,25 @@
 import { useEffect, useState } from 'react'
-import type { SystemData, FitData, ModelFit, CartItem, HardwareOverride } from '../lib/types'
+import type { SystemData, FitData, HardwareOverride } from '../lib/types'
 import { ModelExplorer } from './ModelExplorer'
 import { AgentFore } from './AgentFore'
-import { MultiModelCart } from './MultiModelCart'
 import { Documentation } from './Documentation'
-import { RefreshCw, Minus, Square, X, BookOpen, Layers, Bot } from 'lucide-react'
-import type { SystemInfo } from '../lib/types'
+import { RefreshCw, Minus, Square, X, BookOpen, Layers, Bot, Home, Sun, Moon, Monitor } from 'lucide-react'
 
 type MainView = 'explorer' | 'agent'
 
-/** Effective hardware for cart: from override or detected system. */
-function getEffectiveHardware(
-  system: SystemInfo | null,
-  hardwareOverride: HardwareOverride | null
-): { vramGb: number; ramGb: number; cores: number } {
-  const vram = system?.gpu_vram_gb ?? 0
-  const ram = system?.total_ram_gb ?? 0
-  const cores = system?.cpu_cores ?? 0
-  const vramGb = hardwareOverride?.memory != null
-    ? (parseFloat(hardwareOverride.memory.replace(/G$/i, '')) || vram)
-    : vram
-  const ramGb = hardwareOverride?.ram != null
-    ? (parseFloat(hardwareOverride.ram.replace(/G$/i, '')) || ram)
-    : ram
-  const coresEffective = hardwareOverride?.cores ?? cores
-  return { vramGb, ramGb, cores: coresEffective }
+const THEME_KEY = 'forellm-theme'
+type ThemeMode = 'dark' | 'light' | 'system'
+
+function getEffectiveTheme(mode: ThemeMode): 'dark' | 'light' {
+  if (mode === 'system') {
+    return typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  }
+  return mode
+}
+
+function applyTheme(mode: 'dark' | 'light') {
+  if (typeof document === 'undefined') return
+  document.documentElement.classList.toggle('dark', mode === 'dark')
 }
 
 /** Windows-style "restore down" icon: two overlapping outlined squares */
@@ -47,39 +42,39 @@ function RestoreDownIcon({ className }: { className?: string }) {
 interface Props {
   systemData: SystemData | null
   fitData: FitData | null
-  cartItems: CartItem[]
   loading: boolean
+  loadingFullList?: boolean
   simulating: boolean
   contextLength: number
   hardwareOverride: HardwareOverride | null
   runnableCountDetected: number | null
   onSimulate: (override: HardwareOverride | null) => void
   onContextChange: (ctx: number) => void
-  onAddToCart: (model: ModelFit) => void
-  onRemoveFromCart: (id: string) => void
-  onClearCart: () => void
   onRefresh: () => void
+  onBackToLauncher?: () => void
 }
 
 export function Dashboard({
   systemData,
   fitData,
-  cartItems,
   loading,
+  loadingFullList,
   simulating,
   contextLength,
   hardwareOverride,
   runnableCountDetected,
   onSimulate,
   onContextChange,
-  onAddToCart,
-  onRemoveFromCart,
-  onClearCart,
-  onRefresh
+  onRefresh,
+  onBackToLauncher
 }: Props) {
   const [isMaximized, setIsMaximized] = useState(false)
   const [docsOpen, setDocsOpen] = useState(false)
   const [mainView, setMainView] = useState<MainView>('explorer')
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    if (typeof localStorage === 'undefined') return 'dark'
+    return (localStorage.getItem(THEME_KEY) as ThemeMode) || 'dark'
+  })
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.forellm) {
@@ -88,13 +83,41 @@ export function Dashboard({
     }
   }, [])
 
+  useEffect(() => {
+    const effective = getEffectiveTheme(themeMode)
+    applyTheme(effective)
+  }, [themeMode])
+
+  useEffect(() => {
+    if (themeMode !== 'system') return
+    const mq = window.matchMedia?.('(prefers-color-scheme: light)')
+    const handler = () => applyTheme(getEffectiveTheme('system'))
+    mq?.addEventListener?.('change', handler)
+    return () => mq?.removeEventListener?.('change', handler)
+  }, [themeMode])
+
+  function cycleTheme() {
+    const next: ThemeMode = themeMode === 'dark' ? 'light' : themeMode === 'light' ? 'system' : 'dark'
+    setThemeMode(next)
+    localStorage.setItem(THEME_KEY, next)
+  }
+
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden rounded-xl bg-zinc-950">
+    <div className="flex h-screen w-screen flex-col overflow-hidden rounded-xl bg-white dark:bg-zinc-950">
       {docsOpen && <Documentation onClose={() => setDocsOpen(false)} />}
       {/* Title bar */}
-      <header className="flex h-10 shrink-0 items-center justify-between rounded-t-xl border-b border-zinc-800 bg-zinc-900/80 px-4 [-webkit-app-region:drag]">
+      <header className="flex h-10 shrink-0 items-center justify-between rounded-t-xl border-b border-zinc-200 bg-zinc-100 px-4 dark:border-zinc-800 dark:bg-zinc-900/80 [-webkit-app-region:drag]">
         <div className="flex items-center gap-2 [-webkit-app-region:no-drag]">
-          <span className="text-sm font-semibold tracking-wide text-zinc-200">
+          {onBackToLauncher && (
+            <button
+              onClick={onBackToLauncher}
+              className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              title="Back to launcher"
+            >
+              <Home className="h-4 w-4" />
+            </button>
+          )}
+          <span className="text-sm font-semibold tracking-wide text-zinc-800 dark:text-zinc-200">
             ForeLLM
           </span>
           <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[10px] text-emerald-400">
@@ -102,34 +125,47 @@ export function Dashboard({
           </span>
         </div>
         <div className="flex items-center gap-0.5 [-webkit-app-region:no-drag]">
+          {loadingFullList && (
+            <span className="text-[10px] text-cyan-600 dark:text-cyan-500/90">Loading full list (may take 1–2 min)…</span>
+          )}
           <button
             onClick={onRefresh}
             disabled={loading}
-            className="flex items-center gap-1.5 rounded px-2 py-1 text-xs text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-40"
+            className="flex items-center gap-1.5 rounded px-2 py-1 text-xs text-zinc-600 transition hover:bg-zinc-200 hover:text-zinc-900 disabled:opacity-40 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
           >
             <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
             {loading ? 'Loading…' : 'Refresh'}
           </button>
           <button
             onClick={() => setDocsOpen(true)}
-            className="flex items-center gap-1.5 rounded px-2 py-1 text-xs text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+            className="flex items-center gap-1.5 rounded px-2 py-1 text-xs text-zinc-600 transition hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
             title="Documentation"
           >
             <BookOpen className="h-3 w-3" />
             Docs
           </button>
+          <button
+            type="button"
+            onClick={cycleTheme}
+            className="rounded p-1.5 text-zinc-600 transition hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            title={themeMode === 'dark' ? 'Dark' : themeMode === 'light' ? 'Light' : 'System'}
+          >
+            {themeMode === 'dark' && <Moon className="h-4 w-4" />}
+            {themeMode === 'light' && <Sun className="h-4 w-4" />}
+            {themeMode === 'system' && <Monitor className="h-4 w-4" />}
+          </button>
           {typeof window !== 'undefined' && window.forellm && (
             <>
               <button
                 onClick={() => window.forellm.minimize()}
-                className="rounded p-1.5 text-zinc-400 transition hover:bg-zinc-700 hover:text-zinc-200"
+                className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
                 title="Minimize"
               >
                 <Minus className="h-4 w-4" />
               </button>
               <button
                 onClick={() => window.forellm.maximize()}
-                className="rounded p-1.5 text-zinc-400 transition hover:bg-zinc-700 hover:text-zinc-200"
+                className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
                 title={isMaximized ? 'Restore down' : 'Maximize'}
               >
                 {isMaximized ? (
@@ -140,7 +176,7 @@ export function Dashboard({
               </button>
               <button
                 onClick={() => window.forellm.close()}
-                className="rounded p-1.5 text-zinc-400 transition hover:bg-red-500/20 hover:text-red-400"
+                className="rounded p-1.5 text-zinc-500 transition hover:bg-red-500/20 hover:text-red-400"
                 title="Close"
               >
                 <X className="h-4 w-4" />
@@ -151,22 +187,22 @@ export function Dashboard({
       </header>
 
       {/* Main layout */}
-      <div className="flex min-h-0 flex-1 flex-col gap-px bg-zinc-800/50">
+      <div className="flex min-h-0 flex-1 flex-col gap-px bg-zinc-200 dark:bg-zinc-800/50">
         <div className="flex min-h-0 flex-1">
           {/* Main content: Model Explorer or Agent Fore */}
-          <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-zinc-950">
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-950">
             {/* Top bar: Model Explorer | Agent Fore */}
-            <div className="flex shrink-0 items-center gap-1 border-b border-zinc-800 px-3 py-1.5">
+            <div className="flex shrink-0 items-center gap-1 border-b border-zinc-200 px-3 py-1.5 dark:border-zinc-800">
               <button
                 type="button"
                 onClick={() => setMainView('explorer')}
                 className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wider transition ${
                   mainView === 'explorer'
-                    ? 'bg-zinc-800 text-zinc-200'
-                    : 'text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300'
+                    ? 'bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200'
+                    : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-500 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-300'
                 }`}
               >
-                <Layers className="h-3.5 w-3.5 text-cyan-400" />
+                <Layers className="h-3.5 w-3.5 text-cyan-500 dark:text-cyan-400" />
                 Model Explorer
               </button>
               <button
@@ -174,12 +210,12 @@ export function Dashboard({
                 onClick={() => setMainView('agent')}
                 className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wider transition ${
                   mainView === 'agent'
-                    ? 'bg-emerald-500/15 text-emerald-400'
-                    : 'text-zinc-500 hover:bg-zinc-800/60 hover:text-emerald-400/90'
+                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                    : 'text-zinc-600 hover:bg-zinc-100 hover:text-emerald-600 dark:text-zinc-500 dark:hover:bg-zinc-800/60 dark:hover:text-emerald-400/90'
                 }`}
                 title="AI agent with system specs and model knowledge"
               >
-                <Bot className="h-4 w-4 text-emerald-400" />
+                <Bot className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
                 Agent Fore
               </button>
             </div>
@@ -190,8 +226,6 @@ export function Dashboard({
                   loading={loading}
                   contextLength={contextLength}
                   onContextChange={onContextChange}
-                  onAddToCart={onAddToCart}
-                  cartItems={cartItems}
                 />
               )}
               {mainView === 'agent' && (
@@ -206,20 +240,6 @@ export function Dashboard({
           </div>
         </div>
 
-        {/* Multi-Model Cart — only visible when there are items */}
-        {cartItems.length > 0 && (
-          <div className="shrink-0 bg-zinc-950">
-            <MultiModelCart
-              items={cartItems}
-              vramAvailable={getEffectiveHardware(systemData?.system ?? fitData?.system ?? null, hardwareOverride).vramGb}
-              ramAvailable={getEffectiveHardware(systemData?.system ?? fitData?.system ?? null, hardwareOverride).ramGb}
-              coresAvailable={getEffectiveHardware(systemData?.system ?? fitData?.system ?? null, hardwareOverride).cores}
-              isSimulated={simulating}
-              onRemove={onRemoveFromCart}
-              onClear={onClearCart}
-            />
-          </div>
-        )}
       </div>
     </div>
   )
