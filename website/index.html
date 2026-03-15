@@ -374,13 +374,22 @@
       font-size: 1rem;
       color: var(--text);
     }
-    .feature span { color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .feature span {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 4;
+      overflow: hidden;
+    }
     .feature code { font-size: 12px; background: var(--bg); padding: 2px 6px; border-radius: 4px; color: var(--accent); }
 
     .install-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 20px;
+      align-items: start;
     }
     .install-card {
       border: 1px solid var(--border);
