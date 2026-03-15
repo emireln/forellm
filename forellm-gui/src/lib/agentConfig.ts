@@ -191,7 +191,7 @@ Q2_K, Q3_K_M, Q4_K_M (default), Q5_K_M, Q6_K, Q8_0, FP16. Lower bits = smaller, 
 ---
 
 ## Desktop GUI (Model Explorer and Agent Fore)
-- **Theme:** Dark / light / system toggle in the title bar; preference is saved.
+- **Theme:** Dark / light toggle in the title bar; preference is saved.
 - **Model Explorer:** Per model: copy run command, download (forellm download), and **link to Hugging Face** (opens the model card in the browser). No cart; do not suggest adding models to a cart.
 - **Agent Fore (in-app):** **Export chat** — users can export the current conversation as Markdown or TXT (with or without tool calls) from the toolbar Export menu.
 

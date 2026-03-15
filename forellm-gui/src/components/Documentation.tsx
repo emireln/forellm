@@ -70,7 +70,7 @@ npm run dev`}
             </h2>
             <ul className="space-y-1.5 text-zinc-600 dark:text-zinc-400">
               <li><strong className="text-zinc-700 dark:text-zinc-300">ForeLLM</strong> — App name and version badge.</li>
-              <li><strong className="text-zinc-700 dark:text-zinc-300">Theme</strong> — Toggle dark / light / system (cycle: Moon, Sun, Monitor).</li>
+              <li><strong className="text-zinc-700 dark:text-zinc-300">Theme</strong> — Toggle dark / light (cycle: Moon, Sun).</li>
               <li><strong className="text-zinc-700 dark:text-zinc-300">Refresh</strong> — Re-runs hardware detection and fit; reloads the model list.</li>
               <li><strong className="text-zinc-700 dark:text-zinc-300">Docs</strong> — Opens this documentation.</li>
               <li><strong className="text-zinc-700 dark:text-zinc-300">Window controls</strong> — Minimize, Maximize/Restore, Close (Electron).</li>

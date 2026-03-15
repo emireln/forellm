@@ -9,6 +9,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Syne:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      var key = 'forellm-theme';
+      var mode = (typeof localStorage !== 'undefined' && localStorage.getItem(key)) || 'dark';
+      if (mode === 'light') document.documentElement.classList.add('light');
+      else document.documentElement.classList.remove('light');
+    })();
+  </script>
   <style>
     :root {
       --bg: #0c0c0e;
@@ -29,7 +37,27 @@
       --content: min(1080px, 90vw);
       --font-head: 'Syne', sans-serif;
       --font-body: 'DM Sans', system-ui, sans-serif;
+      --nav-bg: rgba(12, 12, 14, 0.85);
     }
+    html.light {
+      --bg: #f4f4f5;
+      --bg-alt: #eaeaec;
+      --card: #ffffff;
+      --card-hover: #f8f8f9;
+      --border: #d4d4d8;
+      --border-focus: #a1a1aa;
+      --border-hover: rgba(64, 247, 167, 0.45);
+      --text: #18181b;
+      --muted: #52525b;
+      --accent: #40f7a7;
+      --accent-dim: rgba(64, 247, 167, 0.15);
+      --neon-glow: 0 0 40px rgba(64, 247, 167, 0.06);
+      --neon-glow-strong: 0 0 50px rgba(64, 247, 167, 0.1);
+      --nav-bg: rgba(255, 255, 255, 0.9);
+    }
+    html.light .bg-grid { background-image: linear-gradient(to right, rgba(0,0,0,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.06) 1px, transparent 1px); }
+    html.light .bg-neon .blob { background: radial-gradient(circle, rgba(64, 247, 167, 0.06) 0%, transparent 65%); }
+    html.light code.command { color: var(--accent); }
 
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
@@ -128,9 +156,9 @@
       top: 0;
       z-index: 20;
       backdrop-filter: blur(12px);
-      background: rgba(12, 12, 14, 0.85);
+      background: var(--nav-bg);
       border-bottom: 1px solid var(--border);
-      transition: box-shadow 0.25s ease;
+      transition: box-shadow 0.25s ease, background 0.2s ease;
     }
     .nav-wrap.scrolled { box-shadow: 0 4px 24px rgba(0,0,0,0.25); }
 
@@ -203,16 +231,22 @@
       border-color: var(--border-focus);
       background: var(--card);
     }
+    .btn-icon-only {
+      padding: 10px;
+      min-width: 44px;
+    }
+    .btn-icon-only .theme-icon { display: inline-flex; align-items: center; justify-content: center; }
+    .btn-icon-only .theme-icon[hidden] { display: none; }
 
     .btn-support {
-      border-color: var(--accent);
-      background: transparent;
-      color: var(--accent);
+      background: var(--accent);
+      color: #0c0c0e;
+      border-color: transparent;
     }
     .btn-support:hover {
-      background: var(--accent-dim);
-      color: var(--accent);
-      border-color: var(--accent);
+      background: #52f9b3;
+      box-shadow: 0 6px 20px var(--accent-dim);
+      color: #0c0c0e;
     }
 
     .btn-icon {
@@ -604,9 +638,10 @@
           <span>ForeLLM</span>
         </a>
         <div class="nav-links">
-          <a class="btn btn-ghost" href="#features">Features</a>
-          <a class="btn btn-ghost" href="#install">Install</a>
-          <a class="btn btn-ghost" href="https://github.com/emireln/forellm/blob/main/forellm-gui/docs/TUTORIAL_LAUNCHER.md" target="_blank" rel="noopener">Tutorial</a>
+          <button type="button" class="btn btn-ghost btn-icon-only" id="theme-toggle" aria-label="Theme: dark" title="Theme: dark">
+            <span class="theme-icon theme-icon-dark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+            <span class="theme-icon theme-icon-light" aria-hidden="true" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span>
+          </button>
           <a class="btn btn-ghost" href="https://github.com/emireln/forellm" target="_blank" rel="noopener">
             <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg>
             GitHub
@@ -703,7 +738,7 @@
         <article class="feature reveal"><b>CLI</b><span>System info, fit ranking, search. Script and automate easily.</span></article>
         <article class="feature reveal"><b>REST API</b><span>Run <code>forellm serve</code> for integrations and automation.</span></article>
         <article class="feature reveal"><b>Multi-GPU</b><span>Combined GPU memory awareness for multi-card setups.</span></article>
-        <article class="feature reveal"><b>Desktop GUI</b><span>Launcher first: open the GUI, run Agent in terminal, or run ForeLLM TUI—one click, no commands. Model Explorer (copy, download, link to Hugging Face), theme toggle (dark/light/system). Home button returns to launcher.</span></article>
+        <article class="feature reveal"><b>Desktop GUI</b><span>Launcher first: open the GUI, run Agent in terminal, or run ForeLLM TUI—one click, no commands. Model Explorer (copy, download, link to Hugging Face), theme toggle (dark/light). Home button returns to launcher.</span></article>
         <article class="feature reveal"><b>Agent Fore</b><span>AI chat (GUI or CLI): Several tools. Export chat to Markdown or TXT. Multiple agents. Start from launcher “Run Agent in Terminal” or <code>npm run agent</code> in forellm-gui; <code>/help</code> for commands.</span></article>
         <article class="feature reveal"><b>MoE</b><span>Correct memory and run-mode handling for Mixtral, DeepSeek-V2, etc.</span></article>
         <article class="feature reveal"><b>Providers</b><span>Ollama, llama.cpp, MLX—detect installed models and run commands.</span></article>
@@ -947,6 +982,38 @@
       strip.addEventListener('touchmove', onTouch, { passive: true });
       strip.addEventListener('touchend', onLeave);
       strip.addEventListener('touchcancel', onLeave);
+    })();
+
+    (function themeToggle() {
+      var THEME_KEY = 'forellm-theme';
+      var btn = document.getElementById('theme-toggle');
+      function apply() {
+        var mode = localStorage.getItem(THEME_KEY) || 'dark';
+        if (mode === 'system') mode = 'dark';
+        document.documentElement.classList.toggle('light', mode === 'light');
+      }
+      function updateButton() {
+        var mode = localStorage.getItem(THEME_KEY) || 'dark';
+        if (mode === 'system') mode = 'dark';
+        var spans = btn.querySelectorAll('.theme-icon');
+        spans[0].hidden = mode !== 'dark';
+        spans[1].hidden = mode !== 'light';
+        var label = mode === 'dark' ? 'Dark' : 'Light';
+        btn.setAttribute('aria-label', 'Theme: ' + label);
+        btn.setAttribute('title', 'Theme: ' + label);
+      }
+      if (btn) {
+        apply();
+        updateButton();
+        btn.addEventListener('click', function() {
+          var mode = localStorage.getItem(THEME_KEY) || 'dark';
+          if (mode === 'system') mode = 'dark';
+          var next = mode === 'dark' ? 'light' : 'dark';
+          localStorage.setItem(THEME_KEY, next);
+          apply();
+          updateButton();
+        });
+      }
     })();
   </script>
 </body>

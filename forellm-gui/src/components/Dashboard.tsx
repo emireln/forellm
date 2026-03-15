@@ -3,19 +3,12 @@ import type { SystemData, FitData, HardwareOverride } from '../lib/types'
 import { ModelExplorer } from './ModelExplorer'
 import { AgentFore } from './AgentFore'
 import { Documentation } from './Documentation'
-import { RefreshCw, Minus, Square, X, BookOpen, Layers, Bot, Home, Sun, Moon, Monitor } from 'lucide-react'
+import { RefreshCw, Minus, Square, X, BookOpen, Layers, Bot, Home, Sun, Moon } from 'lucide-react'
 
 type MainView = 'explorer' | 'agent'
 
 const THEME_KEY = 'forellm-theme'
-type ThemeMode = 'dark' | 'light' | 'system'
-
-function getEffectiveTheme(mode: ThemeMode): 'dark' | 'light' {
-  if (mode === 'system') {
-    return typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
-  }
-  return mode
-}
+type ThemeMode = 'dark' | 'light'
 
 function applyTheme(mode: 'dark' | 'light') {
   if (typeof document === 'undefined') return
@@ -73,7 +66,8 @@ export function Dashboard({
   const [mainView, setMainView] = useState<MainView>('explorer')
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     if (typeof localStorage === 'undefined') return 'dark'
-    return (localStorage.getItem(THEME_KEY) as ThemeMode) || 'dark'
+    const stored = localStorage.getItem(THEME_KEY) as string | null
+    return (stored === 'light' || stored === 'dark') ? stored : 'dark'
   })
 
   useEffect(() => {
@@ -84,20 +78,11 @@ export function Dashboard({
   }, [])
 
   useEffect(() => {
-    const effective = getEffectiveTheme(themeMode)
-    applyTheme(effective)
-  }, [themeMode])
-
-  useEffect(() => {
-    if (themeMode !== 'system') return
-    const mq = window.matchMedia?.('(prefers-color-scheme: light)')
-    const handler = () => applyTheme(getEffectiveTheme('system'))
-    mq?.addEventListener?.('change', handler)
-    return () => mq?.removeEventListener?.('change', handler)
+    applyTheme(themeMode)
   }, [themeMode])
 
   function cycleTheme() {
-    const next: ThemeMode = themeMode === 'dark' ? 'light' : themeMode === 'light' ? 'system' : 'dark'
+    const next: ThemeMode = themeMode === 'dark' ? 'light' : 'dark'
     setThemeMode(next)
     localStorage.setItem(THEME_KEY, next)
   }
@@ -148,11 +133,10 @@ export function Dashboard({
             type="button"
             onClick={cycleTheme}
             className="rounded p-1.5 text-zinc-600 transition hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-            title={themeMode === 'dark' ? 'Dark' : themeMode === 'light' ? 'Light' : 'System'}
+            title={themeMode === 'dark' ? 'Dark' : 'Light'}
           >
             {themeMode === 'dark' && <Moon className="h-4 w-4" />}
             {themeMode === 'light' && <Sun className="h-4 w-4" />}
-            {themeMode === 'system' && <Monitor className="h-4 w-4" />}
           </button>
           {typeof window !== 'undefined' && window.forellm && (
             <>

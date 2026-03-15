@@ -5,9 +5,6 @@
     (function() {
       var t = localStorage.getItem('forellm-theme');
       if (t === 'light') document.documentElement.classList.remove('dark');
-      else if (t === 'system') {
-        document.documentElement.classList.toggle('dark', !window.matchMedia('(prefers-color-scheme: light)').matches);
-      }
     })();
   </script>
   <meta charset="UTF-8" />
