@@ -626,13 +626,16 @@
         ForeLLM reads your RAM, CPU, and GPU, scores hundreds of models by fit and speed, and tells you which will run well locally. TUI, CLI, REST API, and an optional desktop GUI.
       </p>
       <div class="hero-ctas reveal delay-4">
-        <a class="btn btn-primary" href="#install">
-          Get Started
+        <a class="btn btn-primary" href="https://github.com/emireln/forellm/releases/tag/Setup_Installer" target="_blank" rel="noopener">
+          <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Download for Windows
+        </a>
+        <a class="btn btn-ghost" href="#install">
+          Get Started (CLI)
           <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
         <a class="btn btn-ghost" href="https://github.com/emireln/forellm/releases" target="_blank" rel="noopener">
-          <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-          Releases
+          All Releases
         </a>
         <a class="btn btn-ghost" href="https://github.com/emireln/forellm#readme" target="_blank" rel="noopener">
           <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path stroke="currentColor" stroke-width="2" d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
@@ -713,6 +716,17 @@
       <p class="lead reveal">Copy the command for your platform and run it.</p>
       <div class="install-grid">
         <article class="install-card reveal">
+          <h3>Windows (Desktop GUI)</h3>
+          <p class="muted" style="margin:0 0 12px; font-size: 13px;">Launcher, Model Explorer, Agent Fore. Built with <code style="background: var(--bg); padding: 2px 6px; border-radius: 4px;">npm run dist</code> in forellm-gui.</p>
+          <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+            <a class="btn btn-primary" href="https://github.com/emireln/forellm/releases/tag/Setup_Installer" target="_blank" rel="noopener" style="margin:0;">
+              <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+              Download Setup.exe
+            </a>
+          </div>
+          <p class="muted" style="margin:12px 0 0; font-size: 12px; line-height: 1.5;"><strong style="color: var(--text);">Antivirus / SmartScreen:</strong> Windows may show a warning because the installer is not code-signed. This is common for open-source apps. Choose &quot;More info&quot; → &quot;Run anyway&quot; (or &quot;Run anyway&quot; in SmartScreen). The <a href="https://github.com/emireln/forellm" target="_blank" rel="noopener" style="color: var(--accent);">source code is public on GitHub</a>; you can build it yourself with <code style="background: var(--bg); padding: 2px 6px; border-radius: 4px;">npm run dist</code>.</p>
+        </article>
+        <article class="install-card reveal">
           <h3>Windows (Scoop)</h3>
           <div class="code-row">
             <code class="command" id="cmd-win">scoop install forellm</code>
@@ -761,8 +775,12 @@
           <p style="margin:0; color: var(--muted);">Install with one command, then open the TUI or hit the docs.</p>
         </div>
         <div style="display:flex; gap:12px; flex-wrap:wrap;">
-          <a class="btn btn-primary" href="#install">
-            Install
+          <a class="btn btn-primary" href="https://github.com/emireln/forellm/releases/tag/Setup_Installer" target="_blank" rel="noopener">
+            <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Download for Windows
+          </a>
+          <a class="btn btn-ghost" href="#install">
+            Install (CLI / Scoop / Brew)
             <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/></svg>
           </a>
           <a class="btn btn-ghost" href="https://github.com/emireln/forellm" target="_blank" rel="noopener">

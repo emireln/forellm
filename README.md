@@ -255,7 +255,7 @@ npm install
 npm run dev
 ```
 
-**Installed app (Windows installer):** From `forellm-gui`, run `npm run dist`. This runs `pre-dist` (builds `forellm` with `cargo build --release` from the repo root) then packages the Electron app and **bundles the forellm binary** into the installer. The installed app uses this bundled binary, so no PATH or FORELLM_PATH is required. Installer output: `forellm-gui/release-build/`. To build the installer without bundling forellm (e.g. if you don’t have Rust): `npm run dist:no-binary` (users will need forellm on PATH or FORELLM_PATH).
+**Installed app (Windows installer):** From `forellm-gui`, run `npm run dist`. This runs `pre-dist` (builds `forellm` with `cargo build --release` from the repo root) then packages the Electron app and **bundles the forellm binary** into the installer. The installed app uses this bundled binary, so no PATH or FORELLM_PATH is required. Installer output: `forellm-gui/release-build/`. To build the installer without bundling forellm (e.g. if you don’t have Rust): `npm run dist:no-binary` (users will need forellm on PATH or FORELLM_PATH). **Download the built Setup.exe** from the [Releases](https://github.com/emireln/forellm/releases/tag/Setup_Installer) page or the [website](https://github.com/emireln/forellm#readme); the site includes an antivirus/SmartScreen notice (Windows may flag unsigned installers—choose “Run anyway”).
 
 **Launcher (first screen):** When you start the app, a **Launcher** lets you choose with one click (no commands to type). The launcher uses the same **theme** (dark / light / system) as the GUI—your preference is saved and applied on next launch.
 
