@@ -257,7 +257,7 @@ npm run dev
 
 **Installed app (Windows installer):** From `forellm-gui`, run `npm run dist`. This runs `pre-dist` (builds `forellm` with `cargo build --release` from the repo root) then packages the Electron app and **bundles the forellm binary** into the installer. The installed app uses this bundled binary, so no PATH or FORELLM_PATH is required. Installer output: `forellm-gui/release-build/`. To build the installer without bundling forellm (e.g. if you don’t have Rust): `npm run dist:no-binary` (users will need forellm on PATH or FORELLM_PATH).
 
-**Launcher (first screen):** When you start the app, a **Launcher** lets you choose with one click (no commands to type):
+**Launcher (first screen):** When you start the app, a **Launcher** lets you choose with one click (no commands to type). The launcher uses the same **theme** (dark / light / system) as the GUI—your preference is saved and applied on next launch.
 
 - **Open ForeLLM GUI** — Dashboard in this window (Model Explorer, Agent Fore tab).
 - **Run Agent in Terminal** — Opens a new terminal and runs the Agent Fore CLI (`npm run agent`).

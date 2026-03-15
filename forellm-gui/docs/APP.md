@@ -14,7 +14,7 @@ The GUI is a visual dashboard that runs the `forellm` CLI under the hood. It let
 
 ## Launcher (first screen)
 
-When you start the app, the **Launcher** is the first screen. It offers three actions (no commands to type):
+When you start the app, the **Launcher** is the first screen. It uses the same **theme** (dark / light / system) as the rest of the app—your choice is stored in the browser and applied when you open the launcher or return to it via the Home button. It offers three actions (no commands to type):
 
 | Action | Description |
 |--------|-------------|
@@ -138,7 +138,7 @@ Only repos that contain **GGUF** files work. Repos with only PyTorch/safetensors
 
 | Feature | Description |
 |--------|--------------|
-| **Launcher** | First screen: Open ForeLLM GUI, Run Agent in Terminal, or Run ForeLLM CLI (one click, no commands). Home button in dashboard returns to launcher. |
+| **Launcher** | First screen: Open ForeLLM GUI, Run Agent in Terminal, or Run ForeLLM CLI (one click, no commands). Follows the same theme (dark/light/system) as the GUI. Home button in dashboard returns to launcher. |
 | **Theme** | Dark / light / system toggle in title bar; preference saved. |
 | **Model Explorer** | Search, context slider, sortable table, expand row, copy run/download command, link to Hugging Face model card. |
 | **Paste & download** | Paste command or model ID; parse and run `forellm download`; result auto-dismisses after 7 s. |
