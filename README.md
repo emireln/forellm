@@ -14,7 +14,7 @@ A terminal tool that right-sizes LLM models to your system's RAM, CPU, and GPU. 
 
 Ships with an interactive **TUI** (default), a **classic CLI**, a **REST API** (`forellm serve`), and an optional **desktop GUI** (Electron + React) for a visual dashboard. Supports multi-GPU setups, MoE architectures, dynamic quantization selection, speed estimation, and local runtime providers (Ollama, llama.cpp, MLX).
 
-**By Emir Lima, using the core of https://github.com/AlexsJones/llmfit, perfect work by the way.**
+**By Emir Lima, using the core of https://github.com/AlexsJones/llmfit, perfect work by the way ⭐.**
 
 ---
 
