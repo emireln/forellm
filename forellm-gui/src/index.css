@@ -124,6 +124,34 @@
     background-color: #18181b;
     color: #e4e4e7;
   }
+  /* Custom dropdown trigger (no native select): hide bg chevron, we use inline ChevronDown */
+  .agent-fore-select.agent-fore-select-trigger {
+    background-image: none;
+  }
+
+  /* History + model dropdown: scrollbar track matches panel bg (no gray top/bottom) */
+  .agent-fore-history-dropdown,
+  .agent-fore-model-dropdown {
+    scrollbar-gutter: stable;
+  }
+  .agent-fore-history-dropdown::-webkit-scrollbar,
+  .agent-fore-model-dropdown::-webkit-scrollbar {
+    width: 6px;
+  }
+  .agent-fore-history-dropdown::-webkit-scrollbar-track,
+  .agent-fore-model-dropdown::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 2px 0;
+  }
+  .agent-fore-history-dropdown::-webkit-scrollbar-thumb,
+  .agent-fore-model-dropdown::-webkit-scrollbar-thumb {
+    background: rgb(113 113 122);
+    border-radius: 3px;
+  }
+  .dark .agent-fore-history-dropdown::-webkit-scrollbar-thumb,
+  .dark .agent-fore-model-dropdown::-webkit-scrollbar-thumb {
+    background: rgb(82 82 91);
+  }
 
   /* Launcher: gradient fading background (website-style) — layer order: base < grid < neon */
   .launcher-bg-wrap {

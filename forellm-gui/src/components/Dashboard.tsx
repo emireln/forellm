@@ -219,7 +219,7 @@ export function Dashboard({
                 Agent Fore
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-hidden">
+            <div className="min-h-0 min-w-0 w-full flex-1 overflow-hidden">
               {mainView === 'explorer' && (
                 <ModelExplorer
                   models={fitData?.models ?? []}
