@@ -6,7 +6,8 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { SystemInfo, ModelFit } from '../lib/types'
 import { cn } from '../lib/types'
 import { AGENTS, baseForellmContext } from '../lib/agentConfig'
-import { Bot, Send, Loader2, AlertCircle, User, Paperclip, X, MessageSquarePlus, RotateCcw, Trash2, History, Pencil, Check, Download, ChevronDown } from 'lucide-react'
+import { Bot, Send, Loader2, AlertCircle, User, Paperclip, X } from 'lucide-react'
+import { AgentForeToolbar } from './AgentForeToolbar'
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
@@ -54,12 +55,10 @@ export function AgentFore({ system, models, contextLength }: Props) {
   const [selectedAgentId, setSelectedAgentId] = useState('general')
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
   const [inputDragOver, setInputDragOver] = useState(false)
-  const [showHistoryOpen, setShowHistoryOpen] = useState(false)
   const [showRenameInput, setShowRenameInput] = useState(false)
   const [renameValue, setRenameValue] = useState('')
   const [pendingCommand, setPendingCommand] = useState<{ command: string; continueState: unknown } | null>(null)
   const [streamingContent, setStreamingContent] = useState<string | null>(null)
-  const [exportMenuOpen, setExportMenuOpen] = useState(false)
   const streamingBufferRef = useRef('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -166,7 +165,6 @@ export function AgentFore({ system, models, contextLength }: Props) {
     a.download = `${title}.${ext}`
     a.click()
     URL.revokeObjectURL(url)
-    setExportMenuOpen(false)
   }
 
   function parseButtons(content: string): { content: string; buttons: string[] } {
@@ -448,222 +446,40 @@ export function AgentFore({ system, models, contextLength }: Props) {
   const canSend = input.trim().length > 0 && (selectedModel || (backend === 'openclaw' ? openclawModels[0] : ollamaModels[0])) && !sending
 
   return (
-    <div className="flex h-full flex-col bg-zinc-50 dark:bg-zinc-950">
-      {/* Toolbar */}
-      <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-zinc-200 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-transparent">
-        <Bot className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-400">
-          Agent Fore
-        </span>
-        <div className="relative flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setExportMenuOpen((o) => !o)}
-            disabled={messages.length === 0}
-            className="flex items-center gap-1.5 rounded px-2 py-1.5 text-xs text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 disabled:opacity-40 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-            title="Export chat"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Export
-            <ChevronDown className="h-3 w-3" />
-          </button>
-          {exportMenuOpen && (
-            <>
-              <div className="fixed inset-0 z-10" aria-hidden onClick={() => setExportMenuOpen(false)} />
-              <div className="absolute left-0 top-full z-20 mt-1 min-w-[200px] rounded-lg border border-zinc-200 bg-white py-1 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
-                <button
-                  type="button"
-                  onClick={() => exportChat('markdown', false)}
-                  className="w-full px-3 py-2 text-left text-xs text-zinc-800 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                >
-                  Export as Markdown (clean)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => exportChat('markdown', true)}
-                  className="w-full px-3 py-2 text-left text-xs text-zinc-800 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                >
-                  Export as Markdown (with tool calls)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => exportChat('txt', false)}
-                  className="w-full px-3 py-2 text-left text-xs text-zinc-800 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                >
-                  Export as TXT (clean)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => exportChat('txt', true)}
-                  className="w-full px-3 py-2 text-left text-xs text-zinc-800 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                >
-                  Export as TXT (with tool calls)
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="text-[10px] text-zinc-600 dark:text-zinc-500">Agent:</label>
-          <select
-            value={selectedAgentId}
-            onChange={(e) => setSelectedAgentId(e.target.value)}
-            className="agent-fore-select min-w-[140px]"
-            title={agent.description}
-          >
-            {AGENTS.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="text-[10px] text-zinc-600 dark:text-zinc-500">Backend:</label>
-          <select
-            value={backend}
-            onChange={(e) => {
-              setBackend(e.target.value as 'ollama' | 'openclaw')
-              setSelectedModel('')
-            }}
-            className="agent-fore-select min-w-[100px]"
-          >
-            <option value="ollama">Ollama</option>
-            <option value="openclaw">OpenClaw</option>
-          </select>
-        </div>
-        {backend === 'openclaw' && (
-          <div className="flex items-center gap-2">
-            <label className="text-[10px] text-zinc-600 dark:text-zinc-500">URL:</label>
-            <input
-              type="text"
-              value={openclawBaseUrl}
-              onChange={(e) => setOpenclawBaseUrl(e.target.value)}
-              placeholder="127.0.0.1:18789"
-              className="agent-fore-select min-w-[140px] font-mono text-xs"
-            />
-          </div>
-        )}
-        <div className="flex items-center gap-2">
-          <label className="text-[10px] text-zinc-600 dark:text-zinc-500">Model:</label>
-          <select
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="agent-fore-select min-w-[160px]"
-          >
-            {backend === 'ollama' && ollamaModels.length === 0 && (
-              <option value="">{ollamaError || 'Loading…'}</option>
-            )}
-            {backend === 'openclaw' && openclawModels.length === 0 && (
-              <option value="">{openclawError != null ? openclawError : 'Loading…'}</option>
-            )}
-            {backend === 'ollama' && ollamaModels.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-            {backend === 'openclaw' && openclawModels.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="ml-auto flex items-center gap-1">
-          <button
-            type="button"
-            onClick={startNewChat}
-            className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
-            title="Start new chat"
-          >
-            <MessageSquarePlus className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={resetChat}
-            disabled={!currentSession || messages.length === 0}
-            className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-40 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
-            title="Reset chat"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={removeCurrentChat}
-            disabled={!currentSession}
-            className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-red-600 disabled:opacity-40 dark:hover:bg-zinc-800 dark:hover:text-red-400"
-            title="Remove chat"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-          {showRenameInput ? (
-            <div className="flex items-center gap-1 rounded border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900">
-              <input
-                type="text"
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') saveRename()
-                  if (e.key === 'Escape') setShowRenameInput(false)
-                }}
-                className="w-36 rounded bg-transparent px-1.5 py-0.5 text-xs text-zinc-800 outline-none placeholder:text-zinc-500 dark:text-zinc-200"
-                placeholder="Chat name"
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={saveRename}
-                className="rounded p-1 text-emerald-600 transition hover:bg-zinc-100 dark:text-emerald-400 dark:hover:bg-zinc-800"
-                title="Save"
-              >
-                <Check className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={startRename}
-              disabled={!currentSession}
-              className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-40 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
-              title="Rename chat"
-            >
-              <Pencil className="h-4 w-4" />
-            </button>
-          )}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowHistoryOpen((o) => !o)}
-              className="flex items-center gap-1 rounded p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
-              title="Previous chats"
-            >
-              <History className="h-4 w-4" />
-            </button>
-            {showHistoryOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowHistoryOpen(false)} aria-hidden />
-                <div className="absolute right-0 top-full z-20 mt-1.5 max-h-60 min-w-[200px] overflow-auto rounded-xl border border-zinc-200 bg-white py-1.5 shadow-xl ring-1 ring-zinc-200 dark:border-zinc-700 dark:bg-zinc-900/95 dark:ring-zinc-800">
-                  {sessions.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => { setCurrentSessionId(s.id); setShowHistoryOpen(false) }}
-                      className={cn(
-                        'w-full px-3 py-2.5 text-left text-xs transition',
-                        currentSession?.id === s.id
-                          ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                          : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'
-                      )}
-                    >
-                      {s.title}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-950">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-transparent to-cyan-500/15 dark:from-emerald-500/25 dark:via-transparent dark:to-cyan-500/20" aria-hidden />
+      <div className="relative flex min-h-0 flex-1 flex-col">
+      <AgentForeToolbar
+        agentId={selectedAgentId}
+        onAgentChange={setSelectedAgentId}
+        backend={backend}
+        onBackendChange={(b) => { setBackend(b); setSelectedModel('') }}
+        openclawBaseUrl={openclawBaseUrl}
+        onOpenClawBaseUrlChange={setOpenclawBaseUrl}
+        selectedModel={selectedModel}
+        onModelChange={setSelectedModel}
+        ollamaModels={ollamaModels}
+        openclawModels={openclawModels}
+        ollamaError={ollamaError}
+        openclawError={openclawError}
+        onExport={exportChat}
+        exportDisabled={messages.length === 0}
+        sessions={sessions.map((s) => ({ id: s.id, title: s.title }))}
+        currentSessionId={currentSessionId}
+        onSessionSelect={setCurrentSessionId}
+        onNewChat={startNewChat}
+        onResetChat={resetChat}
+        onRemoveChat={removeCurrentChat}
+        resetDisabled={!currentSession || messages.length === 0}
+        removeDisabled={!currentSession}
+        showRenameInput={showRenameInput}
+        renameValue={renameValue}
+        onRenameValueChange={setRenameValue}
+        onRenameSubmit={saveRename}
+        onRenameCancel={() => setShowRenameInput(false)}
+        onRenameClick={startRename}
+        renameDisabled={!currentSession}
+      />
 
       {(backend === 'ollama' ? ollamaError : openclawError) && (
         <div className="flex shrink-0 items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
@@ -932,6 +748,7 @@ export function AgentFore({ system, models, contextLength }: Props) {
             Send
           </button>
         </div>
+      </div>
       </div>
     </div>
   )
