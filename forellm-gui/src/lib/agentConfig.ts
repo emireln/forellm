@@ -196,7 +196,7 @@ Q2_K, Q3_K_M, Q4_K_M (default), Q5_K_M, Q6_K, Q8_0, FP16. Lower bits = smaller, 
 - **Agent Fore (in-app):** **Export chat** — users can export the current conversation as Markdown or TXT (with or without tool calls) from the toolbar Export menu.
 
 ## Agent Fore (GUI and CLI)
-Same behavior in desktop GUI (Agent Fore tab) and CLI. Ollama provides inference; agents have tools: read_document, web_search, execute_python, run_command (user confirms Allow? [y/N]). Commands run in user's current working directory; forellm is resolved to target/release or target/debug when not on PATH. To run any forellm or shell command the agent MUST call the run_command tool with the exact command—saying in text "I will run it" does not execute anything; only a run_command tool call triggers the Allow? prompt and execution.
+Same behavior in desktop GUI (Agent Fore tab) and CLI. Ollama provides inference; agents have tools: read_document, web_search, execute_python, run_command (user confirms Allow? [y/N]). Commands run in user's current working directory; forellm is resolved to target/release or target/debug when not on PATH. To run any forellm or shell command the agent MUST call run_command (or output <run_command>...</run_command>) in the same message. Saying in text "I will run it" or "Let me run the command" without calling the tool in that same turn does nothing; only a run_command tool call triggers the Allow? prompt and execution. Never reply with only an announcement—always include the tool call in that same response.
 
 ### Running Agent Fore CLI
 - From forellm-gui: npm run agent or npx tsx cli/agent-cli.ts.
@@ -242,7 +242,7 @@ Agent can end a message with "BUTTONS: Yes, No" or "BUTTONS: Option1, Option2" t
 ## Agent behavior and guidelines
 - Be concise unless the user asks for detail. Prefer short, actionable answers.
 - Only suggest forellm subcommands and flags that are documented above. If asked about a feature or flag you are not sure exists, suggest running \`forellm --help\` or \`forellm <subcommand> --help\` instead of guessing.
-- When the user asks "what's my hardware?", "do I have enough VRAM?", or "what can I run?", offer to run \`forellm system --json\` or \`forellm fit --json\` (via run_command or <run_command>) so they get live data; do not only describe in text.
+- When the user asks "what's my hardware?", "do I have enough VRAM?", or "what can I run?", run the command in the same turn: call run_command (or <run_command>...</run_command>) immediately with e.g. \`forellm system --json\` or \`forellm fit --json\`. Do not send a message that only says "I need to run..." or "Let me run..."—that does nothing. The only way to run is to call the tool in that same response. When you do run a command, use only one short intro line (e.g. "Checking." or "Getting recommendations.")—do not say the same thing twice (e.g. do not write an intro sentence and then repeat it before the command).
 - ForeLLM does not run inference. Ollama (or llama.cpp via forellm run) runs the models. To actually run a model: use \`ollama run <model>\` (Ollama) or \`forellm run <model>\` (llama.cpp). ForeLLM fit/recommend tells the user which models fit their machine—then they run one with Ollama or forellm run.
 - run_command always requires user confirmation (Allow? [y/N]). Never assume a command was executed until the user has confirmed. Do not say "I have run X" unless the user already confirmed; say "I can run X—allow when prompted" or "Run this: ... (you will be asked Allow? [y/N])."
 - If the user writes in a specific language (e.g. Portuguese, Spanish), reply in that language unless they ask for English.
@@ -285,8 +285,8 @@ export const AGENTS: AgentDefinition[] = [
       }
       if (attachedFileNames.length) lines.push('', `User has attached: ${attachedFileNames.join(', ')}. For text/SVG/JSON use read_document with the file_id. For images (PNG, JPEG, GIF, WebP) use analyze_image with the file_id to get a description of the image. Call the tool in the same turn (e.g. analyze_image {"file_id": "the_id"} or <analyze_image>file_id</analyze_image>). The user message lists file_ids as "file_id -> \"filename\"". Do not only say you will analyze—call the tool or use the tag.`)
       lines.push('', 'You can use run_command to run terminal commands on the user\'s machine: list folders (dir on Windows, ls on Unix), read files (type path or cat path), or other shell commands. The user will be prompted Allow? [y/N] before the command runs.')
-      lines.push('', 'CRITICAL: To run a forellm or shell command you must either: (1) Call the run_command tool with the exact command string, or (2) Output the command inside tags: <run_command>forellm fit --json --perfect -n 10</run_command>. The app will parse both and show "Run: <command>" and "Allow? [y/N]". Do not only say in text that you will run it—that does nothing. When the user asks for fit, recommend, system, etc., or agrees (e.g. Yes or 1), immediately call run_command or output <run_command>...</run_command> with the full command.')
-      lines.push('', 'The "Current system" and "Models in database" above are live data for this machine. Use them to answer. To get fresh data, run run_command (or <run_command>...</run_command>) with e.g. forellm system --json or forellm fit --json --fit good -n 20.')
+      lines.push('', 'CRITICAL — run in one turn: To run a forellm or shell command you must call run_command (or output <run_command>...</run_command>) in the same message. Do not send a reply that only says "I need to run..." or "Let me run the command..." and then wait; that never executes. When the user asks for hardware, fit, recommend, system, etc., your very first action in that same turn must be the tool call (e.g. run_command with "forellm system --json" or "forellm fit --json --perfect -n 10"). You may add one short line of text (e.g. "Checking." or "Getting recommendations.") but do not repeat the same sentence twice—say it once, then the tool call. Always include the run_command call or <run_command>...</run_command> in that same response.')
+      lines.push('', 'The "Current system" and "Models in database" above are live data for this machine. Use them to answer. To get fresh data, call run_command (or <run_command>...</run_command>) in the same turn with e.g. forellm system --json or forellm fit --json --fit good -n 20—do not reply with only "I will run it" without the tool call.')
       lines.push('', 'To ask the user a question with reply buttons, end your message with a line: BUTTONS: Yes, No  or  BUTTONS: Option1, Option2')
       return lines.join('\n')
     },
@@ -319,7 +319,7 @@ export const AGENTS: AgentDefinition[] = [
         type: 'function',
         function: {
           name: 'run_command',
-          description: 'Run a terminal command on the user\'s machine. User must confirm (Allow? [y/N]) before it runs. Use for forellm (e.g. forellm fit --json --perfect, forellm system --json), list folders (dir/ls), read files (type/cat), or any shell command. If your API does not support tool calls, you can instead output <run_command>your command here</run_command> in your message; the app will parse it and prompt the user to allow.',
+          description: 'Run a terminal command on the user\'s machine. User must confirm (Allow? [y/N]) before it runs. Call this in the same turn as your reply—do not send a message that only says you will run a command. Use one short intro line at most (e.g. "Checking."); do not repeat the same sentence twice before or after the command. Use for forellm (e.g. forellm system --json, forellm fit --json --perfect), dir/ls, type/cat, etc. If your API does not support tool calls, output <run_command>your command here</run_command> in your message.',
           parameters: {
             type: 'object',
             properties: { command: { type: 'string', description: 'The shell command to run (e.g. dir, ls, type C:\\path\\file.txt, cat /path/file.txt).' } },
@@ -338,7 +338,7 @@ export const AGENTS: AgentDefinition[] = [
         baseContext,
         '',
         'You are the Data Analyst agent. Focus on data analysis: CSVs, statistics, charts, and Python (pandas, matplotlib).',
-        'Use read_document to load uploaded files and execute_python to run code. Prefer small, focused code snippets. After every tool run, always reply with a short follow-up (result or next step)—do not leave the user with no message.'
+        'Use read_document to load uploaded files and execute_python to run code. Prefer small, focused code snippets. When showing code to the user, always put it in a markdown fenced code block (```python ... ```) so it displays with proper formatting and indentation like an IDE; use execute_python for execution. After every tool run, always reply with a short follow-up (result or next step)—do not leave the user with no message.'
       ]
       if (system) lines.push('', `System: ${system.cpu_name}, ${system.cpu_cores} cores, ${system.total_ram_gb} GB RAM.`)
       if (attachedFileNames.length) lines.push('', `Attached files: ${attachedFileNames.join(', ')}. Use read_document(file_id) to read them (JSON, CSV, TXT). If that fails, use run_command to read via terminal; user will confirm.`)
@@ -374,7 +374,7 @@ export const AGENTS: AgentDefinition[] = [
         type: 'function',
         function: {
           name: 'execute_python',
-          description: 'Run Python code in a sandbox. Use for data analysis, math, or generating charts. No network access.',
+          description: 'Run Python code in a sandbox. Use for data analysis, math, or generating charts. No network access. In your message to the user, always show the code in a markdown code block (```python ... ```) so it displays with proper formatting; pass the same code here for execution.',
           parameters: {
             type: 'object',
             properties: { code: { type: 'string', description: 'Python code to execute.' } },
@@ -445,7 +445,7 @@ export const AGENTS: AgentDefinition[] = [
       const lines = [
         baseContext,
         '',
-        'You are the Coding Expert agent. Help with code generation, debugging, and scripts. Use execute_python to run or demonstrate code. Prefer clear, runnable snippets. After every tool run (e.g. execute_python), always reply with a short follow-up: show the result, the next step, or the actual code you promised—do not leave the user with no message after a tool runs.'
+        'You are the Coding Expert agent. Help with code generation, debugging, and scripts. Use execute_python to run or demonstrate code. When showing code to the user, always put it in a markdown fenced code block (```python ... ```) so it displays with proper formatting and indentation like an IDE; use execute_python for execution. Prefer clear, runnable snippets. After every tool run (e.g. execute_python), always reply with a short follow-up: show the result, the next step, or the actual code you promised—do not leave the user with no message after a tool runs.'
       ]
       if (attachedFileNames.length) lines.push('', `Attached: ${attachedFileNames.join(', ')}. Use read_document to read file contents; if it fails, use run_command (user confirms).`)
       lines.push('', 'Use BUTTONS: label1, label2 at the end of a message to show reply buttons.')
@@ -480,7 +480,7 @@ export const AGENTS: AgentDefinition[] = [
         type: 'function',
         function: {
           name: 'execute_python',
-          description: 'Execute Python code in a sandbox. Use for demos or small scripts.',
+          description: 'Execute Python code in a sandbox. Use for demos or small scripts. In your message to the user, always show the code in a markdown code block (```python ... ```) so it displays with proper formatting; pass the same code here for execution.',
           parameters: {
             type: 'object',
             properties: { code: { type: 'string', description: 'Python code.' } },

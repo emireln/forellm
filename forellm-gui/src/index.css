@@ -153,6 +153,20 @@
     background: rgb(82 82 91);
   }
 
+  /* Agent Fore: wavy background animation */
+  @keyframes agent-fore-wave {
+    0%, 100% { transform: translateX(0) scaleY(1); }
+    25% { transform: translateX(2%) scaleY(1.02); }
+    50% { transform: translateX(-1%) scaleY(0.98); }
+    75% { transform: translateX(1.5%) scaleY(1.01); }
+  }
+  .agent-fore-wave {
+    animation: agent-fore-wave 12s ease-in-out infinite;
+  }
+  .agent-fore-wave-slow {
+    animation: agent-fore-wave 18s ease-in-out infinite reverse;
+  }
+
   /* Launcher: gradient fading background (website-style) — layer order: base < grid < neon */
   .launcher-bg-wrap {
     position: fixed;

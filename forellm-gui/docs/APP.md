@@ -103,9 +103,11 @@ Fit badges (Perfect, Good, Marginal, TooTight) and colors indicate how well the 
 
 ## Agent Fore (Ollama / OpenClaw chat)
 
-The **Agent Fore** tab is an AI chat powered by Ollama or OpenClaw, with multiple agents (General, Data Analyst, Web Researcher, Coding Expert) and tools: read attached files (text, JSON, CSV, SVG), **analyze images** (PNG, JPEG, GIF, WebP — uses a vision model such as llava; set `OLLAMA_VISION_MODEL` to override), web search, run Python, and run terminal commands (with Allow/Deny). The agent has access to your system specs and the ForeLLM model list. When the agent runs `forellm` commands, the app resolves the binary path if it is not on PATH.
+The **Agent Fore** tab is an AI chat powered by Ollama or OpenClaw, with multiple agents (General, Data Analyst, Web Researcher, Coding Expert) and tools: read attached files (text, JSON, CSV, SVG), **analyze images** (PNG, JPEG, GIF, WebP — uses a vision model such as llava; set `OLLAMA_VISION_MODEL` to override), web search, run Python (code shown in IDE-style blocks), and run terminal commands (with Allow/Deny). The agent has access to your system specs and the ForeLLM model list. When the agent runs `forellm` commands, the app resolves the binary path if it is not on PATH.
 
-- **Export chat** — In the Agent Fore toolbar, use **Export** to download the current conversation as **Markdown** or **TXT**. Choose “clean” (tool calls stripped) or “with tool calls” for full logs and support.
+- **Auto-save** — Conversations and settings (sessions, selected agent, backend, model) are saved to the browser (localStorage) and restored when you reopen the app or return to the Agent Fore tab.
+- **Floating controls island** — At the top of the chat area, a floating **Controls** pill opens the toolbar (Export, Agent, Backend, Model, New chat, Reset, Remove, Rename, History). Click outside the island to close it so the chat area stays uncluttered.
+- **Export chat** — In the controls island, use **Export** to download the current conversation as **Markdown** or **TXT**. Choose “clean” (tool calls stripped) or “with tool calls” for full logs and support.
 
 **Same chat from the terminal (Agent Fore CLI):** From the `forellm-gui` directory run `npm run agent` (or `npx tsx cli/agent-cli.ts`). Model is auto-detected from Ollama; use `--model`, `--agent general|data|web|coding`, and `--file <path>` to override or attach files. In the chat, type **`/help`** to see slash commands (`/clear`, `/agent`, `/model`, `/models`, `/file`, `/files`, etc.). See [AGENT_FORE_ARCHITECTURE.md](AGENT_FORE_ARCHITECTURE.md) for full usage.
 
@@ -142,6 +144,6 @@ Only repos that contain **GGUF** files work. Repos with only PyTorch/safetensors
 | **Paste & download** | Paste command or model ID; parse and run `forellm download`; result auto-dismisses after 7 s. |
 | **Refresh** | Reload system and fit data. |
 | **Window controls** | Minimize, Maximize/Restore, Close (Electron). |
-| **Agent Fore** | Ollama/OpenClaw chat tab: agents (General, Data Analyst, Web Researcher, Coding Expert), tools (read file, analyze image, web search, Python, run command with confirm), **export chat** (Markdown/TXT, with or without tool calls). Image analysis uses a vision model (e.g. llava). CLI: `npm run agent` from `forellm-gui` or via launcher “Run Agent in Terminal”. |
+| **Agent Fore** | Ollama/OpenClaw chat tab: **auto-saved** conversations, **floating controls island** (Export, Agent, Backend, Model, chat actions; click outside to close). Agents (General, Data Analyst, Web Researcher, Coding Expert), tools (read file, analyze image, web search, Python with IDE-style code blocks, run command with confirm), **export chat** (Markdown/TXT, with or without tool calls). Image analysis uses a vision model (e.g. llava). CLI: `npm run agent` from `forellm-gui` or via launcher “Run Agent in Terminal”. |
 
 All data (system, fit, recommendations) comes from the `forellm` binary; the GUI is a front-end that displays and triggers these operations. See [TUTORIAL_LAUNCHER.md](TUTORIAL_LAUNCHER.md) for a launcher-to-Agent walkthrough.
