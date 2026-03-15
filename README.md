@@ -255,17 +255,26 @@ npm install
 npm run dev
 ```
 
+**Installed app (Windows installer):** From `forellm-gui`, run `npm run dist`. This runs `pre-dist` (builds `forellm` with `cargo build --release` from the repo root) then packages the Electron app and **bundles the forellm binary** into the installer. The installed app uses this bundled binary, so no PATH or FORELLM_PATH is required. Installer output: `forellm-gui/release-build/`. To build the installer without bundling forellm (e.g. if you don’t have Rust): `npm run dist:no-binary` (users will need forellm on PATH or FORELLM_PATH).
+
+**Launcher (first screen):** When you start the app, a **Launcher** lets you choose with one click (no commands to type):
+
+- **Open ForeLLM GUI** — Dashboard in this window (Model Explorer, Agent Fore tab).
+- **Run Agent in Terminal** — Opens a new terminal and runs the Agent Fore CLI (`npm run agent`).
+- **Run ForeLLM CLI** — Opens a new terminal and runs the Rust `forellm` TUI.
+
+Use the **Home** icon in the dashboard title bar to return to the launcher. See **[forellm-gui/docs/TUTORIAL_LAUNCHER.md](forellm-gui/docs/TUTORIAL_LAUNCHER.md)** for a step-by-step tutorial (launcher → GUI → Agent Fore in-app and CLI).
+
 **Features:**
 
-- **Model Explorer** — Full model list (569+; all fit levels including TooTight). Sortable table with Fit badges, quantization matrix, and context slider (2k–128k). Per-row actions: copy run command, download (runs `forellm download`), and add to cart.
-- **Multi-model cart** — Add several models (LLM + embedding + etc.) and see cumulative VRAM/RAM usage vs your hardware.
-- **Agent Fore** — AI chat tab powered by Ollama (or OpenClaw). Real-time streaming, multiple agents (General, Data Analyst, Web Researcher, Coding Expert), and tools: read attached files (JSON, CSV, TXT, SVG), **analyze images** (PNG, JPEG, GIF, WebP via a vision model e.g. llava), run Python snippets, web search, and run terminal commands with your confirmation (Allow/Deny). Attach files by drag-and-drop; the agent sees your system specs and the full ForeLLM model list. Commands like `forellm system --json` are resolved to the binary path when not on PATH. Reply buttons (Yes/No or custom) supported. Requires Ollama (or OpenClaw) running locally.
+- **Model Explorer** — Full model list (569+; all fit levels including TooTight). Sortable table with Fit badges, quantization matrix, and context slider (2k–128k). Per-row actions: copy run command, download (runs `forellm download`), and **link to Hugging Face** (opens the model card in your browser). **Theme toggle** (dark / light / system) in the title bar next to Docs.
+- **Agent Fore** — AI chat tab powered by Ollama (or OpenClaw). Real-time streaming, multiple agents (General, Data Analyst, Web Researcher, Coding Expert), and tools: read attached files (JSON, CSV, TXT, SVG), **analyze images** (PNG, JPEG, GIF, WebP via a vision model e.g. llava), run Python snippets, web search, and run terminal commands with your confirmation (Allow/Deny). **Export chat** to Markdown or TXT (with or without tool calls) from the toolbar. Attach files by drag-and-drop; the agent sees your system specs and the full ForeLLM model list. Commands like `forellm system --json` are resolved to the binary path when not on PATH. Reply buttons (Yes/No or custom) supported. Requires Ollama (or OpenClaw) running locally.
 
-**Agent Fore CLI** — The same Agent Fore chat in the terminal. See [Using Agent Fore from the CLI](#using-agent-fore-from-the-cli) below.
+**Agent Fore CLI** — The same Agent Fore chat in the terminal. You can start it from the launcher (“Run Agent in Terminal”) or manually; see [Using Agent Fore from the CLI](#using-agent-fore-from-the-cli) below.
 
 The GUI is in `forellm-gui/` (Electron + React + Tailwind). Set `FORELLM_PATH` to the binary if it is not in `../target/release/forellm`. The app and taskbar use `forellm-gui/public/forellm.png` as the window icon; the README uses `assets/forellm.png`. No in-app favicon.
 
-**Full app documentation:** [forellm-gui/docs/APP.md](forellm-gui/docs/APP.md) — title bar, Model Explorer (search, context, per-row copy/download/add-to-cart, table), Agent Fore (Ollama chat), Multi-Model Cart, download behavior, and environment.
+**Full app documentation:** [forellm-gui/docs/APP.md](forellm-gui/docs/APP.md) — launcher, title bar, theme toggle, Model Explorer (search, context, copy/download, Hugging Face link), Agent Fore (Ollama chat, export chat), download behavior, and environment.
 
 #### Using Agent Fore from the CLI
 
@@ -480,7 +489,7 @@ forellm-tui/        -- CLI + TUI binary (forellm)
 forellm-desktop/    -- Tauri desktop app (macOS; alternate to Electron GUI)
 forellm-gui/        -- Electron + React desktop dashboard (optional)
   electron/        -- Main process: spawns forellm binary, IPC handlers
-  src/             -- React app: model explorer, cart, Agent Fore
+  src/             -- React app: model explorer, Agent Fore (export chat, theme)
 data/
   hf_models.json   -- Model database (embedded at compile time)
 skills/

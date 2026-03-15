@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import type { ModelFit, CartItem } from '../lib/types'
+import type { ModelFit } from '../lib/types'
 import { cn } from '../lib/types'
 import { FitBadge } from './FitBadge'
 import { QuantizationMatrix } from './QuantizationMatrix'
@@ -8,14 +8,14 @@ import {
   SlidersHorizontal,
   ChevronDown,
   ChevronRight,
-  ShoppingCart,
   Copy,
   Check,
   Loader2,
   Layers,
   Download,
   AlertCircle,
-  X
+  X,
+  ExternalLink
 } from 'lucide-react'
 
 interface Props {
@@ -23,8 +23,6 @@ interface Props {
   loading: boolean
   contextLength: number
   onContextChange: (ctx: number) => void
-  onAddToCart: (model: ModelFit) => void
-  cartItems: CartItem[]
 }
 
 const CTX_STOPS = [2048, 4096, 8192, 16384, 32768, 65536, 131072]
@@ -55,9 +53,7 @@ export function ModelExplorer({
   models,
   loading,
   contextLength,
-  onContextChange,
-  onAddToCart,
-  cartItems
+  onContextChange
 }: Props) {
   const [search, setSearch] = useState('')
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
@@ -72,11 +68,6 @@ export function ModelExplorer({
     const t = setTimeout(() => setDownloadError(null), 8000)
     return () => clearTimeout(t)
   }, [downloadError])
-
-  const cartNames = useMemo(
-    () => new Set(cartItems.map((c) => c.model.name)),
-    [cartItems]
-  )
 
   const filtered = useMemo(() => {
     let list = models
@@ -138,45 +129,45 @@ export function ModelExplorer({
   return (
     <div className="flex h-full flex-col">
       {/* Toolbar */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-zinc-800 px-4 py-2">
-        <Layers className="h-3.5 w-3.5 text-cyan-400" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+      <div className="flex shrink-0 items-center gap-3 border-b border-zinc-200 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-transparent">
+        <Layers className="h-3.5 w-3.5 text-cyan-500 dark:text-cyan-400" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-400">
           Model Explorer
         </span>
-        <span className="mono rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500">
+        <span className="mono rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-500">
           {filtered.length}/{models.length}
         </span>
 
         {/* Search */}
         <div className="relative ml-auto">
-          <Search className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-600" />
+          <Search className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-500 dark:text-zinc-600" />
           <input
             type="text"
             placeholder="Search models…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-56 rounded border border-zinc-700 bg-zinc-950 py-1.5 pl-8 pr-3 text-xs text-zinc-300 outline-none placeholder:text-zinc-600 focus:border-cyan-500/50"
+            className="w-56 rounded border border-zinc-300 bg-white py-1.5 pl-8 pr-3 text-xs text-zinc-800 outline-none placeholder:text-zinc-500 focus:border-cyan-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:placeholder:text-zinc-600"
           />
         </div>
 
         {/* Context slider */}
         <div className="flex items-center gap-2">
-          <SlidersHorizontal className="h-3 w-3 text-zinc-600" />
-          <span className="text-[10px] text-zinc-500">Context</span>
+          <SlidersHorizontal className="h-3 w-3 text-zinc-500 dark:text-zinc-600" />
+          <span className="text-[10px] text-zinc-600 dark:text-zinc-500">Context</span>
           <input
             type="range"
             min={0}
             max={CTX_STOPS.length - 1}
             value={sliderVal}
             onChange={(e) => onContextChange(CTX_STOPS[+e.target.value])}
-            className="h-1 w-24 cursor-pointer appearance-none rounded-full bg-zinc-700 accent-cyan-500 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-cyan-400"
+            className="h-1 w-24 cursor-pointer appearance-none rounded-full bg-zinc-300 accent-cyan-500 dark:bg-zinc-700 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-cyan-500 dark:[&::-webkit-slider-thumb]:bg-cyan-400"
           />
-          <span className="mono w-10 text-right text-[10px] text-cyan-400">
+          <span className="mono w-10 text-right text-[10px] text-cyan-600 dark:text-cyan-400">
             {formatCtx(contextLength)}
           </span>
         </div>
 
-        {loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-500" />}
+        {loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-500 dark:text-zinc-500" />}
       </div>
 
       {/* Download error */}
@@ -203,8 +194,8 @@ export function ModelExplorer({
       {/* Table */}
       <div className="min-h-0 flex-1 overflow-auto">
         <table className="w-full text-xs">
-          <thead className="sticky top-0 z-10 bg-zinc-900">
-            <tr className="border-b border-zinc-800 text-left text-[10px] uppercase tracking-wider text-zinc-500">
+          <thead className="sticky top-0 z-10 bg-zinc-100 dark:bg-zinc-900">
+            <tr className="border-b border-zinc-200 text-left text-[10px] uppercase tracking-wider text-zinc-600 dark:border-zinc-800 dark:text-zinc-500">
               <th className="w-8 px-3 py-2" />
               <th className="px-3 py-2">Model</th>
               <th className="px-3 py-2">Provider</th>
@@ -221,7 +212,6 @@ export function ModelExplorer({
           <tbody>
             {filtered.map((m) => {
               const expanded = expandedRow === m.name
-              const inCart = cartNames.has(m.name)
               const tag = ollamaTag(m.name)
 
               return (
@@ -229,12 +219,10 @@ export function ModelExplorer({
                   key={m.name}
                   model={m}
                   expanded={expanded}
-                  inCart={inCart}
                   ollamaTag={tag}
                   copiedCmd={copiedCmd}
                   downloading={downloadRunningModel === m.name}
                   onToggleExpand={() => setExpandedRow(expanded ? null : m.name)}
-                  onAddToCart={() => onAddToCart(m)}
                   onCopy={copyCmd}
                   onDownload={() => runDownloadForModel(m.name)}
                 />
@@ -242,7 +230,7 @@ export function ModelExplorer({
             })}
             {filtered.length === 0 && !loading && (
               <tr>
-                <td colSpan={11} className="px-4 py-12 text-center text-zinc-600">
+                <td colSpan={11} className="px-4 py-12 text-center text-zinc-500 dark:text-zinc-600">
                   No models match your search.
                 </td>
               </tr>
@@ -270,10 +258,10 @@ function SortTh({
   const active = current === col
   return (
     <th
-      className="cursor-pointer select-none px-3 py-2 transition hover:text-zinc-300"
+      className="cursor-pointer select-none px-3 py-2 transition hover:text-zinc-800 dark:hover:text-zinc-300"
       onClick={() => onClick(col)}
     >
-      <span className={active ? 'text-cyan-400' : ''}>
+      <span className={active ? 'text-cyan-600 dark:text-cyan-400' : ''}>
         {label}
         {active && <span className="ml-0.5">{asc ? '↑' : '↓'}</span>}
       </span>
@@ -284,23 +272,19 @@ function SortTh({
 function ModelRow({
   model: m,
   expanded,
-  inCart,
   ollamaTag: tag,
   copiedCmd,
   downloading,
   onToggleExpand,
-  onAddToCart,
   onCopy,
   onDownload
 }: {
   model: ModelFit
   expanded: boolean
-  inCart: boolean
   ollamaTag: string | null
   copiedCmd: string | null
   downloading: boolean
   onToggleExpand: () => void
-  onAddToCart: () => void
   onCopy: (cmd: string) => void
   onDownload: () => void
 }) {
@@ -310,13 +294,14 @@ function ModelRow({
     <>
       <tr
         className={cn(
-          'border-b border-zinc-800/50 transition hover:bg-zinc-800/30',
-          expanded && 'bg-zinc-800/20',
+          'border-b border-zinc-200 transition dark:border-zinc-800/50',
+          expanded && 'bg-zinc-100 dark:bg-zinc-800/20',
+          !expanded && 'hover:bg-zinc-50 dark:hover:bg-zinc-800/30',
           m.fit_level === 'TooTight' && 'opacity-50'
         )}
       >
         <td className="px-3 py-2">
-          <button onClick={onToggleExpand} className="text-zinc-500 hover:text-zinc-300">
+          <button onClick={onToggleExpand} className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300">
             {expanded ? (
               <ChevronDown className="h-3.5 w-3.5" />
             ) : (
@@ -324,39 +309,53 @@ function ModelRow({
             )}
           </button>
         </td>
-        <td className="max-w-[200px] truncate px-3 py-2 font-medium text-zinc-200" title={m.name}>
-          {m.name.split('/').pop()}
+        <td className="max-w-[200px] px-3 py-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="truncate font-medium text-zinc-800 dark:text-zinc-200" title={m.name}>
+              {m.name.split('/').pop()}
+            </span>
+            <a
+              href={`https://huggingface.co/${m.name.replace(/ /g, '%20')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 rounded p-0.5 text-zinc-500 transition hover:bg-zinc-200 hover:text-cyan-600 dark:hover:bg-zinc-700 dark:hover:text-cyan-400"
+              title={`Open on Hugging Face: ${m.name}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
         </td>
-        <td className="px-3 py-2 text-zinc-400">{m.provider}</td>
-        <td className="mono px-3 py-2 text-zinc-300">{m.parameter_count}</td>
-        <td className="mono px-3 py-2 text-zinc-400">{m.best_quant}</td>
-        <td className="mono px-3 py-2 text-zinc-300">{m.memory_required_gb.toFixed(1)} GB</td>
+        <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400">{m.provider}</td>
+        <td className="mono px-3 py-2 text-zinc-700 dark:text-zinc-300">{m.parameter_count}</td>
+        <td className="mono px-3 py-2 text-zinc-600 dark:text-zinc-400">{m.best_quant}</td>
+        <td className="mono px-3 py-2 text-zinc-700 dark:text-zinc-300">{m.memory_required_gb.toFixed(1)} GB</td>
         <td className="mono px-3 py-2">
           <span
             className={cn(
               'font-semibold',
-              m.score >= 70 ? 'text-emerald-400' :
-              m.score >= 50 ? 'text-cyan-400' :
-              m.score >= 30 ? 'text-amber-400' : 'text-red-400'
+              m.score >= 70 ? 'text-emerald-600 dark:text-emerald-400' :
+              m.score >= 50 ? 'text-cyan-600 dark:text-cyan-400' :
+              m.score >= 30 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
             )}
           >
             {m.score.toFixed(0)}
           </span>
         </td>
-        <td className="mono px-3 py-2 text-zinc-300">{m.estimated_tps.toFixed(1)}</td>
+        <td className="mono px-3 py-2 text-zinc-700 dark:text-zinc-300">{m.estimated_tps.toFixed(1)}</td>
         <td className="px-3 py-2">
           <FitBadge level={m.fit_level} />
         </td>
-        <td className="px-3 py-2 text-zinc-400">{m.use_case}</td>
+        <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400">{m.use_case}</td>
         <td className="px-3 py-2 text-center">
           <div className="flex items-center justify-center gap-1">
             {m.fit_level !== 'TooTight' && (
               <button
                 onClick={(e) => { e.stopPropagation(); onCopy(runCmd) }}
                 title={`Copy: ${runCmd}`}
-                className="rounded p-1 text-zinc-500 transition hover:bg-zinc-700 hover:text-emerald-400"
+                className="rounded p-1 text-zinc-500 transition hover:bg-zinc-200 hover:text-emerald-600 dark:hover:bg-zinc-700 dark:hover:text-emerald-400"
               >
-                {copiedCmd === runCmd ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                {copiedCmd === runCmd ? <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
               </button>
             )}
             <button
@@ -370,29 +369,11 @@ function ModelRow({
               className={cn(
                 'rounded p-1 transition',
                 downloading
-                  ? 'text-cyan-400'
-                  : 'text-zinc-500 hover:bg-zinc-700 hover:text-cyan-400 disabled:opacity-30'
+                  ? 'text-cyan-600 dark:text-cyan-400'
+                  : 'text-zinc-500 hover:bg-zinc-200 hover:text-cyan-600 disabled:opacity-30 dark:hover:bg-zinc-700 dark:hover:text-cyan-400'
               )}
             >
               {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                onAddToCart()
-              }}
-              disabled={inCart || m.fit_level === 'TooTight'}
-              title={inCart ? 'Already in cart' : 'Add to cart'}
-              className={cn(
-                'rounded p-1 transition',
-                inCart
-                  ? 'text-cyan-400'
-                  : 'text-zinc-500 hover:bg-zinc-700 hover:text-cyan-400 disabled:opacity-30'
-              )}
-            >
-              <ShoppingCart className="h-3.5 w-3.5" />
             </button>
           </div>
         </td>
@@ -400,7 +381,7 @@ function ModelRow({
 
       {/* Expanded quantization matrix */}
       {expanded && (
-        <tr className="border-b border-zinc-800/50 bg-zinc-900/30">
+        <tr className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800/50 dark:bg-zinc-900/30">
           <td colSpan={11} className="px-6 py-3">
             <div className="flex gap-4">
               <div className="flex-1">
@@ -410,22 +391,31 @@ function ModelRow({
                 />
               </div>
               <div className="w-64 shrink-0 space-y-2">
-                <div className="rounded border border-zinc-800 bg-zinc-950 p-3 text-xs">
-                  <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                <div className="rounded border border-zinc-200 bg-white p-3 text-xs dark:border-zinc-800 dark:bg-zinc-950">
+                  <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-500">
                     Run Command
                   </h4>
-                  <div className="flex items-center gap-2 rounded bg-zinc-900 px-2 py-1.5">
-                    <code className="mono flex-1 text-emerald-400">{runCmd}</code>
+                  <div className="flex items-center gap-2 rounded bg-zinc-100 px-2 py-1.5 dark:bg-zinc-900">
+                    <code className="mono flex-1 text-emerald-600 dark:text-emerald-400">{runCmd}</code>
                     <button
                       onClick={() => onCopy(runCmd)}
-                      className="shrink-0 text-zinc-500 hover:text-zinc-300"
+                      className="shrink-0 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
                     >
-                      {copiedCmd === runCmd ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                      {copiedCmd === runCmd ? <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> : <Copy className="h-3 w-3" />}
                     </button>
                   </div>
                 </div>
+                <a
+                  href={`https://huggingface.co/${m.name.replace(/ /g, '%20')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-3 py-2 text-xs text-cyan-600 transition hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-cyan-400 dark:hover:bg-zinc-800"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  View on Hugging Face
+                </a>
                 {m.score_components && (
-                  <div className="rounded border border-zinc-800 bg-zinc-950 p-3 text-xs">
+                  <div className="rounded border border-zinc-200 bg-white p-3 text-xs dark:border-zinc-800 dark:bg-zinc-950">
                     <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                       Score Breakdown
                     </h4>
@@ -447,14 +437,14 @@ function ModelRow({
 function ScoreBar({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex items-center gap-2 py-0.5">
-      <span className="w-14 text-zinc-500">{label}</span>
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-800">
+      <span className="w-14 text-zinc-600 dark:text-zinc-500">{label}</span>
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
         <div
           className="h-full rounded-full bg-cyan-500/60 transition-all duration-500"
           style={{ width: `${value}%` }}
         />
       </div>
-      <span className="mono w-7 text-right text-zinc-400">{value.toFixed(0)}</span>
+      <span className="mono w-7 text-right text-zinc-600 dark:text-zinc-400">{value.toFixed(0)}</span>
     </div>
   )
 }

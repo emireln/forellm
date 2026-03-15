@@ -52,11 +52,6 @@ export interface FitData {
   models: ModelFit[]
 }
 
-export interface CartItem {
-  model: ModelFit
-  id: string
-}
-
 /** What-if simulator overrides (VRAM, RAM, CPU cores). Omitted fields use detected values. */
 export interface HardwareOverride {
   memory?: string

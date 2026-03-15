@@ -6,9 +6,29 @@ This document describes the **Electron + React** desktop app in `forellm-gui/`: 
 
 ## Overview
 
-The GUI is a visual dashboard that runs the `forellm` CLI under the hood. It lets you browse and score models, add them to a cart to check combined memory usage, and run download commands from inside the app.
+The GUI is a visual dashboard that runs the `forellm` CLI under the hood. It lets you browse and score models, run download commands, open Hugging Face model cards, and chat with Agent Fore (with optional export of conversations). The app supports **dark**, **light**, and **system** themes (toggle in the title bar).
 
 **Tech:** Electron (main process), React + Tailwind (renderer), IPC to invoke `forellm` for `system`, `fit`, and `download`.
+
+---
+
+## Launcher (first screen)
+
+When you start the app, the **Launcher** is the first screen. It offers three actions (no commands to type):
+
+| Action | Description |
+|--------|-------------|
+| **Open ForeLLM GUI** | Opens the main dashboard in the current window: Model Explorer and Agent Fore chat tab. |
+| **Run Agent in Terminal** | Opens a **new terminal** and runs the Agent Fore CLI (`npm run agent`) there. Same agents and tools as the in-app Agent Fore tab. |
+| **Run ForeLLM CLI** | Opens a **new terminal** and runs the Rust **forellm** TUI (interactive model list, fit filters, download). |
+
+- Use **Open ForeLLM GUI** when you want the visual dashboard (model table, chat, theme toggle in one window).
+- Use **Run Agent in Terminal** when you prefer the Agent Fore chat in a separate terminal (e.g. with `--file`, `--agent`); the launcher starts it for you.
+- Use **Run ForeLLM CLI** when you want the classic ForeLLM TUI in a terminal.
+
+From the dashboard, the **Home** (house) icon in the title bar returns you to the Launcher.
+
+**Tutorial:** See [TUTORIAL_LAUNCHER.md](TUTORIAL_LAUNCHER.md) for a step-by-step guide from the launcher to the GUI and Agent Fore (in-app and CLI).
 
 ---
 
@@ -32,8 +52,11 @@ Production build: `npm run build` then run the packaged app (e.g. Electron build
 
 ## Title bar
 
+- **Home** — Returns to the Launcher (first screen) so you can switch to Agent in terminal or ForeLLM CLI.
 - **ForeLLM** — App name and version badge (e.g. `v0.1.2026`).
 - **Refresh** — Re-runs hardware detection and fit; reloads the model list.
+- **Docs** — Opens in-app documentation.
+- **Theme** — Cycle **dark** / **light** / **system**. Preference is saved; system follows OS preference.
 - **Window controls** (when running in Electron): Minimize, Maximize/Restore, Close.
 
 The title bar is draggable for moving the window (frameless window).
@@ -70,31 +93,19 @@ Only **GGUF** repositories are supported. If the repo has no GGUF files, the err
 - **Expand row** — Click the chevron to show a second row with:
   - Quantization matrix (quality vs size).
   - Copy button for the run command (`ollama run <tag>` or `forellm download "<model>"`).
-- **Add to cart** — Cart icon adds the model to the Multi-Model Cart (disabled if already in cart or fit is TooTight).
+  - **View on Hugging Face** — Link to the model's card on Hugging Face.
 - **Copy command** — Copy icon copies the run/download command to the clipboard.
+- **Hugging Face** — Link icon (in the model name cell) opens the model card at `https://huggingface.co/<model>` in your browser. In the expanded row: **View on Hugging Face** link.
 
 Fit badges (Perfect, Good, Marginal, TooTight) and colors indicate how well the model fits your detected hardware.
-
----
-
-## Multi-Model Cart
-
-Bottom bar spanning the full width.
-
-- **Empty state:** Only a cart icon is shown (no explanatory text).
-- **With items:**
-  - **Header:** “Multi-Model Cart”, item count, **Clear** button.
-  - **List:** Each item shows fit badge, short name, memory (GB), and remove (X).
-  - **Total VRAM required** — Bar and label: sum of model memory vs available VRAM.
-  - **Status:** “Combined stack fits in VRAM”, “Exceeds VRAM — CPU offload required”, or “Exceeds available memory” depending on total vs VRAM/RAM.
-
-Use the cart to check whether several models (e.g. LLM + embedding) fit together in VRAM or RAM.
 
 ---
 
 ## Agent Fore (Ollama / OpenClaw chat)
 
 The **Agent Fore** tab is an AI chat powered by Ollama or OpenClaw, with multiple agents (General, Data Analyst, Web Researcher, Coding Expert) and tools: read attached files (text, JSON, CSV, SVG), **analyze images** (PNG, JPEG, GIF, WebP — uses a vision model such as llava; set `OLLAMA_VISION_MODEL` to override), web search, run Python, and run terminal commands (with Allow/Deny). The agent has access to your system specs and the ForeLLM model list. When the agent runs `forellm` commands, the app resolves the binary path if it is not on PATH.
+
+- **Export chat** — In the Agent Fore toolbar, use **Export** to download the current conversation as **Markdown** or **TXT**. Choose “clean” (tool calls stripped) or “with tool calls” for full logs and support.
 
 **Same chat from the terminal (Agent Fore CLI):** From the `forellm-gui` directory run `npm run agent` (or `npx tsx cli/agent-cli.ts`). Model is auto-detected from Ollama; use `--model`, `--agent general|data|web|coding`, and `--file <path>` to override or attach files. In the chat, type **`/help`** to see slash commands (`/clear`, `/agent`, `/model`, `/models`, `/file`, `/files`, etc.). See [AGENT_FORE_ARCHITECTURE.md](AGENT_FORE_ARCHITECTURE.md) for full usage.
 
@@ -125,11 +136,12 @@ Only repos that contain **GGUF** files work. Repos with only PyTorch/safetensors
 
 | Feature | Description |
 |--------|--------------|
-| **Model Explorer** | Search, context slider, sortable table, expand row, add to cart, copy run/download command. |
+| **Launcher** | First screen: Open ForeLLM GUI, Run Agent in Terminal, or Run ForeLLM CLI (one click, no commands). Home button in dashboard returns to launcher. |
+| **Theme** | Dark / light / system toggle in title bar; preference saved. |
+| **Model Explorer** | Search, context slider, sortable table, expand row, copy run/download command, link to Hugging Face model card. |
 | **Paste & download** | Paste command or model ID; parse and run `forellm download`; result auto-dismisses after 7 s. |
-| **Multi-Model Cart** | Add models from table; see total VRAM and fit status; Clear. Empty state: cart icon only. |
 | **Refresh** | Reload system and fit data. |
 | **Window controls** | Minimize, Maximize/Restore, Close (Electron). |
-| **Agent Fore** | Ollama/OpenClaw chat tab: agents (General, Data Analyst, Web Researcher, Coding Expert), tools (read file, analyze image, web search, Python, run command with confirm). Image analysis uses a vision model (e.g. llava). CLI: `npm run agent` from `forellm-gui`. |
+| **Agent Fore** | Ollama/OpenClaw chat tab: agents (General, Data Analyst, Web Researcher, Coding Expert), tools (read file, analyze image, web search, Python, run command with confirm), **export chat** (Markdown/TXT, with or without tool calls). Image analysis uses a vision model (e.g. llava). CLI: `npm run agent` from `forellm-gui` or via launcher “Run Agent in Terminal”. |
 
-All data (system, fit, recommendations) comes from the `forellm` binary; the GUI is a front-end that displays and triggers these operations.
+All data (system, fit, recommendations) comes from the `forellm` binary; the GUI is a front-end that displays and triggers these operations. See [TUTORIAL_LAUNCHER.md](TUTORIAL_LAUNCHER.md) for a launcher-to-Agent walkthrough.

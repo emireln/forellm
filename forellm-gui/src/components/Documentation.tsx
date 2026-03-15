@@ -39,7 +39,7 @@ export function Documentation({ onClose }: Props) {
               Overview
             </h2>
             <p className="leading-relaxed">
-              The GUI is a visual dashboard that runs the <strong className="text-zinc-200">forellm</strong> CLI under the hood. It lets you browse and score models, add them to a cart, and run download commands from inside the app.
+              The GUI is a visual dashboard that runs the <strong className="text-zinc-200">forellm</strong> CLI under the hood. It lets you browse and score models and run download commands from inside the app.
             </p>
             <p className="mt-2 leading-relaxed">
               <strong className="text-zinc-200">Tech:</strong> Electron (main process), React + Tailwind (renderer), IPC to invoke <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">forellm</code> for <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">system</code>, <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">fit</code>, and <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">download</code>.
@@ -70,6 +70,7 @@ npm run dev`}
             </h2>
             <ul className="space-y-1.5 text-zinc-400">
               <li><strong className="text-zinc-300">ForeLLM</strong> — App name and version badge.</li>
+              <li><strong className="text-zinc-300">Theme</strong> — Toggle dark / light / system (cycle: Moon, Sun, Monitor).</li>
               <li><strong className="text-zinc-300">Refresh</strong> — Re-runs hardware detection and fit; reloads the model list.</li>
               <li><strong className="text-zinc-300">Docs</strong> — Opens this documentation.</li>
               <li><strong className="text-zinc-300">Window controls</strong> — Minimize, Maximize/Restore, Close (Electron).</li>
@@ -82,7 +83,7 @@ npm run dev`}
               Model Explorer
             </h2>
             <p className="mb-3 leading-relaxed text-zinc-400">
-              Main content: sortable table of models with per-row actions (copy, download, add to cart).
+              Main content: sortable table of models with per-row actions (copy, download, link to Hugging Face).
             </p>
 
             <h3 className="mb-1.5 font-medium text-zinc-200">Toolbar</h3>
@@ -99,12 +100,18 @@ npm run dev`}
               <li><strong className="text-zinc-300">Expand row</strong> — Chevron shows quantization matrix and copy-run-command button.</li>
               <li><strong className="text-zinc-300">Copy</strong> — Copies the run command: <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">ollama run &lt;tag&gt;</code> or <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">forellm download "&lt;model&gt;"</code>. Shown only when the model fits (not TooTight).</li>
               <li><strong className="text-zinc-300">Download</strong> — Runs <code className="rounded bg-zinc-800 px-1 font-mono text-emerald-400">forellm download</code> for that model. Disabled when the model does not fit (TooTight) or while a download is in progress. Only GGUF repos are supported.</li>
-              <li><strong className="text-zinc-300">Add to cart</strong> — Cart icon adds the model to the Multi-Model Cart to check combined memory vs your hardware (VRAM, RAM, cores). Disabled when the model does not fit.</li>
+              <li><strong className="text-zinc-300">Hugging Face</strong> — Link icon opens the model card on Hugging Face in your browser.</li>
             </ul>
             <p className="mt-2 text-zinc-500">Fit badges (Perfect, Good, Marginal, TooTight) show how well the model fits your hardware.</p>
+          </section>
 
-            <h3 className="mb-1.5 mt-3 font-medium text-zinc-200">Multi-Model Cart</h3>
-            <p className="mb-2 text-zinc-400">Bottom bar: add models from the table to see total memory required vs your detected hardware (VRAM, RAM, CPU cores). Status: fits in VRAM, fits in RAM (CPU offload), or exceeds memory.</p>
+          <section className="mb-6">
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              Agent Fore
+            </h2>
+            <p className="mb-2 leading-relaxed text-zinc-400">
+              <strong className="text-zinc-300">Export chat</strong> — In the Agent Fore toolbar, use <strong className="text-zinc-300">Export</strong> to download the current conversation as Markdown or TXT. Choose &quot;clean&quot; (without tool calls) or &quot;with tool calls&quot; for full logs and support.
+            </p>
           </section>
 
           <section className="mb-6">
@@ -138,8 +145,7 @@ npm run dev`}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800">
-                  <tr><td className="px-3 py-2 font-medium text-zinc-200">Model Explorer</td><td className="px-3 py-2">Search, context slider, sortable table, expand row. Actions per row: Copy (run command), Download (forellm download), Add to cart.</td></tr>
-                  <tr><td className="px-3 py-2 font-medium text-zinc-200">Multi-Model Cart</td><td className="px-3 py-2">Add models; see total memory vs your VRAM/RAM/cores.</td></tr>
+                  <tr><td className="px-3 py-2 font-medium text-zinc-200">Model Explorer</td><td className="px-3 py-2">Search, context slider, sortable table, expand row. Actions: Copy (run command), Download, link to Hugging Face.</td></tr>
                   <tr><td className="px-3 py-2 font-medium text-zinc-200">Refresh</td><td className="px-3 py-2">Reload system and fit data.</td></tr>
                   <tr><td className="px-3 py-2 font-medium text-zinc-200">Window controls</td><td className="px-3 py-2">Minimize, Maximize/Restore, Close (Electron).</td></tr>
                 </tbody>

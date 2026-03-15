@@ -6,7 +6,7 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { SystemInfo, ModelFit } from '../lib/types'
 import { cn } from '../lib/types'
 import { AGENTS, baseForellmContext } from '../lib/agentConfig'
-import { Bot, Send, Loader2, AlertCircle, User, Paperclip, X, MessageSquarePlus, RotateCcw, Trash2, History, Pencil, Check } from 'lucide-react'
+import { Bot, Send, Loader2, AlertCircle, User, Paperclip, X, MessageSquarePlus, RotateCcw, Trash2, History, Pencil, Check, Download, ChevronDown } from 'lucide-react'
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
@@ -59,6 +59,7 @@ export function AgentFore({ system, models, contextLength }: Props) {
   const [renameValue, setRenameValue] = useState('')
   const [pendingCommand, setPendingCommand] = useState<{ command: string; continueState: unknown } | null>(null)
   const [streamingContent, setStreamingContent] = useState<string | null>(null)
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
   const streamingBufferRef = useRef('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -133,6 +134,39 @@ export function AgentFore({ system, models, contextLength }: Props) {
       .split('\n')
       .filter((line) => !line.match(lineRe) && !line.match(toolCallLineRe))
     return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+  }
+
+  function exportChat(format: 'markdown' | 'txt', includeToolCalls: boolean) {
+    const visible = messages.filter((m) => m.role !== 'system')
+    if (visible.length === 0) return
+    const lines: string[] = []
+    const title = (currentSession?.title || 'ForeLLM Agent Fore Chat').replace(/[/\\?%*:|"<>]/g, '-')
+    const ext = format === 'markdown' ? 'md' : 'txt'
+    const date = new Date().toISOString().slice(0, 19).replace('T', ' ')
+    for (const msg of visible) {
+      const raw = msg.content
+      const content = includeToolCalls ? raw : (msg.role === 'assistant' ? stripToolCallEchoes(raw) : raw)
+      if (format === 'markdown') {
+        if (msg.role === 'user') {
+          lines.push('### User\n', content, '')
+        } else {
+          lines.push('### Assistant\n', content, '')
+        }
+      } else {
+        lines.push(msg.role === 'user' ? 'User:' : 'Assistant:', '', content, '')
+      }
+    }
+    const body = format === 'markdown'
+      ? `# ${title}\n\nExported ${date}\n\n${lines.join('\n')}`
+      : `${title}\nExported ${date}\n\n${lines.join('\n')}`
+    const blob = new Blob([body], { type: format === 'markdown' ? 'text/markdown' : 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${title}.${ext}`
+    a.click()
+    URL.revokeObjectURL(url)
+    setExportMenuOpen(false)
   }
 
   function parseButtons(content: string): { content: string; buttons: string[] } {
@@ -414,15 +448,63 @@ export function AgentFore({ system, models, contextLength }: Props) {
   const canSend = input.trim().length > 0 && (selectedModel || (backend === 'openclaw' ? openclawModels[0] : ollamaModels[0])) && !sending
 
   return (
-    <div className="flex h-full flex-col bg-zinc-950">
+    <div className="flex h-full flex-col bg-zinc-50 dark:bg-zinc-950">
       {/* Toolbar */}
-      <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-zinc-800 px-4 py-2">
-        <Bot className="h-3.5 w-3.5 text-emerald-400" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+      <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-zinc-200 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-transparent">
+        <Bot className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-400">
           Agent Fore
         </span>
+        <div className="relative flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setExportMenuOpen((o) => !o)}
+            disabled={messages.length === 0}
+            className="flex items-center gap-1.5 rounded px-2 py-1.5 text-xs text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 disabled:opacity-40 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            title="Export chat"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export
+            <ChevronDown className="h-3 w-3" />
+          </button>
+          {exportMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-10" aria-hidden onClick={() => setExportMenuOpen(false)} />
+              <div className="absolute left-0 top-full z-20 mt-1 min-w-[200px] rounded-lg border border-zinc-200 bg-white py-1 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+                <button
+                  type="button"
+                  onClick={() => exportChat('markdown', false)}
+                  className="w-full px-3 py-2 text-left text-xs text-zinc-800 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  Export as Markdown (clean)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => exportChat('markdown', true)}
+                  className="w-full px-3 py-2 text-left text-xs text-zinc-800 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  Export as Markdown (with tool calls)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => exportChat('txt', false)}
+                  className="w-full px-3 py-2 text-left text-xs text-zinc-800 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  Export as TXT (clean)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => exportChat('txt', true)}
+                  className="w-full px-3 py-2 text-left text-xs text-zinc-800 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  Export as TXT (with tool calls)
+                </button>
+              </div>
+            </>
+          )}
+        </div>
         <div className="flex items-center gap-2">
-          <label className="text-[10px] text-zinc-500">Agent:</label>
+          <label className="text-[10px] text-zinc-600 dark:text-zinc-500">Agent:</label>
           <select
             value={selectedAgentId}
             onChange={(e) => setSelectedAgentId(e.target.value)}
@@ -437,7 +519,7 @@ export function AgentFore({ system, models, contextLength }: Props) {
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-[10px] text-zinc-500">Backend:</label>
+          <label className="text-[10px] text-zinc-600 dark:text-zinc-500">Backend:</label>
           <select
             value={backend}
             onChange={(e) => {
@@ -452,7 +534,7 @@ export function AgentFore({ system, models, contextLength }: Props) {
         </div>
         {backend === 'openclaw' && (
           <div className="flex items-center gap-2">
-            <label className="text-[10px] text-zinc-500">URL:</label>
+            <label className="text-[10px] text-zinc-600 dark:text-zinc-500">URL:</label>
             <input
               type="text"
               value={openclawBaseUrl}
@@ -463,7 +545,7 @@ export function AgentFore({ system, models, contextLength }: Props) {
           </div>
         )}
         <div className="flex items-center gap-2">
-          <label className="text-[10px] text-zinc-500">Model:</label>
+          <label className="text-[10px] text-zinc-600 dark:text-zinc-500">Model:</label>
           <select
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
@@ -491,7 +573,7 @@ export function AgentFore({ system, models, contextLength }: Props) {
           <button
             type="button"
             onClick={startNewChat}
-            className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300"
+            className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
             title="Start new chat"
           >
             <MessageSquarePlus className="h-4 w-4" />
@@ -500,7 +582,7 @@ export function AgentFore({ system, models, contextLength }: Props) {
             type="button"
             onClick={resetChat}
             disabled={!currentSession || messages.length === 0}
-            className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-40"
+            className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-40 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
             title="Reset chat"
           >
             <RotateCcw className="h-4 w-4" />
@@ -509,13 +591,13 @@ export function AgentFore({ system, models, contextLength }: Props) {
             type="button"
             onClick={removeCurrentChat}
             disabled={!currentSession}
-            className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-red-400 disabled:opacity-40"
+            className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-red-600 disabled:opacity-40 dark:hover:bg-zinc-800 dark:hover:text-red-400"
             title="Remove chat"
           >
             <Trash2 className="h-4 w-4" />
           </button>
           {showRenameInput ? (
-            <div className="flex items-center gap-1 rounded border border-zinc-700 bg-zinc-900 px-2 py-1">
+            <div className="flex items-center gap-1 rounded border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900">
               <input
                 type="text"
                 value={renameValue}
@@ -524,14 +606,14 @@ export function AgentFore({ system, models, contextLength }: Props) {
                   if (e.key === 'Enter') saveRename()
                   if (e.key === 'Escape') setShowRenameInput(false)
                 }}
-                className="w-36 rounded bg-transparent px-1.5 py-0.5 text-xs text-zinc-200 outline-none placeholder:text-zinc-500"
+                className="w-36 rounded bg-transparent px-1.5 py-0.5 text-xs text-zinc-800 outline-none placeholder:text-zinc-500 dark:text-zinc-200"
                 placeholder="Chat name"
                 autoFocus
               />
               <button
                 type="button"
                 onClick={saveRename}
-                className="rounded p-1 text-emerald-400 transition hover:bg-zinc-800"
+                className="rounded p-1 text-emerald-600 transition hover:bg-zinc-100 dark:text-emerald-400 dark:hover:bg-zinc-800"
                 title="Save"
               >
                 <Check className="h-3.5 w-3.5" />
@@ -542,7 +624,7 @@ export function AgentFore({ system, models, contextLength }: Props) {
               type="button"
               onClick={startRename}
               disabled={!currentSession}
-              className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-40"
+              className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-40 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
               title="Rename chat"
             >
               <Pencil className="h-4 w-4" />
@@ -552,7 +634,7 @@ export function AgentFore({ system, models, contextLength }: Props) {
             <button
               type="button"
               onClick={() => setShowHistoryOpen((o) => !o)}
-              className="flex items-center gap-1 rounded p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300"
+              className="flex items-center gap-1 rounded p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
               title="Previous chats"
             >
               <History className="h-4 w-4" />
@@ -560,7 +642,7 @@ export function AgentFore({ system, models, contextLength }: Props) {
             {showHistoryOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowHistoryOpen(false)} aria-hidden />
-                <div className="absolute right-0 top-full z-20 mt-1.5 max-h-60 min-w-[200px] overflow-auto rounded-xl border border-zinc-700 bg-zinc-900/95 py-1.5 shadow-xl shadow-black/30 ring-1 ring-zinc-800">
+                <div className="absolute right-0 top-full z-20 mt-1.5 max-h-60 min-w-[200px] overflow-auto rounded-xl border border-zinc-200 bg-white py-1.5 shadow-xl ring-1 ring-zinc-200 dark:border-zinc-700 dark:bg-zinc-900/95 dark:ring-zinc-800">
                   {sessions.map((s) => (
                     <button
                       key={s.id}
@@ -569,8 +651,8 @@ export function AgentFore({ system, models, contextLength }: Props) {
                       className={cn(
                         'w-full px-3 py-2.5 text-left text-xs transition',
                         currentSession?.id === s.id
-                          ? 'bg-emerald-500/20 text-emerald-400'
-                          : 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-200'
+                          ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                          : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'
                       )}
                     >
                       {s.title}
@@ -584,11 +666,11 @@ export function AgentFore({ system, models, contextLength }: Props) {
       </div>
 
       {(backend === 'ollama' ? ollamaError : openclawError) && (
-        <div className="flex shrink-0 items-center gap-2 border-b border-amber-900/50 bg-amber-950/30 px-4 py-2 text-xs text-amber-300">
+        <div className="flex shrink-0 items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{backend === 'ollama' ? ollamaError : openclawError}</span>
-          <span className="text-zinc-500">
-            {backend === 'ollama' ? 'Start Ollama or pick a model to enable the agent.' : 'Start OpenClaw gateway (openclaw gateway --port 18789) or check URL.'}
+          <span className="text-zinc-600 dark:text-zinc-500">
+            {backend === 'ollama' ? 'Start Ollama/OpenClaw or pick a model to enable the agent.' : 'Start OpenClaw gateway (openclaw gateway --port 18789) or check URL.'}
           </span>
         </div>
       )}
@@ -599,8 +681,8 @@ export function AgentFore({ system, models, contextLength }: Props) {
         className="min-h-0 flex-1 overflow-y-auto p-4 space-y-4"
       >
         {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-zinc-500">
-            <Bot className="h-10 w-10 text-emerald-500/50" />
+          <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-zinc-600 dark:text-zinc-500">
+            <Bot className="h-10 w-10 text-emerald-500/70 dark:text-emerald-500/50" />
             <p className="text-sm">Switch agents above: General, Data Analyst, Web Researcher, or Coding Expert.</p>
             <p className="text-[10px]">Attach files with the paperclip icon or drag onto the input.</p>
           </div>
@@ -619,7 +701,7 @@ export function AgentFore({ system, models, contextLength }: Props) {
               <div key={i} className={cn('flex gap-3', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
                 {msg.role === 'assistant' && (
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
-                    <Bot className="h-3.5 w-3.5 text-emerald-400" />
+                    <Bot className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
                   </div>
                 )}
                 <div className="flex flex-col gap-2 max-w-[85%]">
@@ -627,19 +709,19 @@ export function AgentFore({ system, models, contextLength }: Props) {
                     className={cn(
                       'rounded-lg px-3 py-2 text-sm',
                       msg.role === 'user'
-                        ? 'bg-zinc-800 text-zinc-200'
-                        : 'bg-zinc-800/80 text-zinc-300 border border-zinc-700/80'
+                        ? 'bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200'
+                        : 'bg-zinc-100 text-zinc-800 border border-zinc-200 dark:bg-zinc-800/80 dark:text-zinc-300 dark:border-zinc-700/80'
                     )}
                   >
                     {msg.role === 'user' ? (
                       <div className="space-y-1.5">
                         <pre className="whitespace-pre-wrap font-sans text-inherit">{msg.content}</pre>
                         {msg.attachedFileNames && msg.attachedFileNames.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 border-t border-zinc-700/80 pt-2 mt-2">
+                          <div className="flex flex-wrap gap-1.5 border-t border-zinc-300 pt-2 mt-2 dark:border-zinc-700/80">
                             {msg.attachedFileNames.map((name) => (
                               <span
                                 key={name}
-                                className="inline-flex items-center gap-1 rounded bg-zinc-700/60 px-2 py-0.5 text-[11px] text-zinc-400"
+                                className="inline-flex items-center gap-1 rounded bg-zinc-300 px-2 py-0.5 text-[11px] text-zinc-600 dark:bg-zinc-700/60 dark:text-zinc-400"
                               >
                                 <Paperclip className="h-3 w-3 shrink-0" />
                                 {name}
@@ -649,7 +731,7 @@ export function AgentFore({ system, models, contextLength }: Props) {
                         )}
                       </div>
                     ) : (
-                      <div className="markdown-chat [&_p]:my-1.5 [&_ul]:my-2 [&_ol]:my-2 [&_li]:ml-4 [&_strong]:font-semibold [&_strong]:text-zinc-200 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_pre]:my-2 [&_pre]:rounded-md">
+                      <div className="markdown-chat [&_p]:my-1.5 [&_ul]:my-2 [&_ol]:my-2 [&_li]:ml-4 [&_strong]:font-semibold [&_strong]:text-zinc-800 dark:[&_strong]:text-zinc-200 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_pre]:my-2 [&_pre]:rounded-md">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
                           components={{
@@ -669,14 +751,14 @@ export function AgentFore({ system, models, contextLength }: Props) {
                                   </SyntaxHighlighter>
                                 </div>
                               ) : (
-                                <code className="bg-zinc-800 text-emerald-300 font-mono text-xs" {...props}>
+                                <code className="bg-zinc-200 text-emerald-700 font-mono text-xs dark:bg-zinc-800 dark:text-emerald-300" {...props}>
                                   {children}
                                 </code>
                               )
                             },
-                            strong: ({ children }) => <strong className="font-semibold text-zinc-200">{children}</strong>,
+                            strong: ({ children }) => <strong className="font-semibold text-zinc-800 dark:text-zinc-200">{children}</strong>,
                             a: ({ href, children }) => (
-                              <a href={href} target="_blank" rel="noopener noreferrer" className="text-emerald-400 underline hover:text-emerald-300">
+                              <a href={href} target="_blank" rel="noopener noreferrer" className="text-emerald-600 underline hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300">
                                 {children}
                               </a>
                             )
@@ -695,7 +777,7 @@ export function AgentFore({ system, models, contextLength }: Props) {
                           type="button"
                           onClick={() => sendReply(label)}
                           disabled={sending}
-                          className="rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:bg-zinc-700 hover:text-zinc-100 disabled:opacity-50"
+                          className="rounded-lg border border-zinc-300 bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-800 transition hover:bg-zinc-200 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                         >
                           {label}
                         </button>
@@ -704,8 +786,8 @@ export function AgentFore({ system, models, contextLength }: Props) {
                   )}
                 </div>
                 {msg.role === 'user' && (
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-700">
-                    <User className="h-3.5 w-3.5 text-zinc-400" />
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-300 dark:bg-zinc-700">
+                    <User className="h-3.5 w-3.5 text-zinc-600 dark:text-zinc-400" />
                   </div>
                 )}
               </div>
@@ -715,20 +797,20 @@ export function AgentFore({ system, models, contextLength }: Props) {
         {streamingContent !== null && (
           <div className="flex gap-3 justify-start">
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
-              <Bot className="h-3.5 w-3.5 text-emerald-400" />
+              <Bot className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
             </div>
-            <div className="max-w-[85%] rounded-lg border border-zinc-700/80 bg-zinc-800/80 px-3 py-2 text-sm text-zinc-300">
+            <div className="max-w-[85%] rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-2 text-sm text-zinc-800 dark:border-zinc-700/80 dark:bg-zinc-800/80 dark:text-zinc-300">
               <span className="whitespace-pre-wrap font-sans">{streamingContent || '\u00a0'}</span>
-              <span className="inline-block w-0.5 h-4 ml-0.5 bg-emerald-400 animate-cursor-blink align-middle" aria-hidden />
+              <span className="inline-block w-0.5 h-4 ml-0.5 bg-emerald-500 dark:bg-emerald-400 animate-cursor-blink align-middle" aria-hidden />
             </div>
           </div>
         )}
         {sending && streamingContent === null && (
           <div className="flex items-center gap-2">
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-500 dark:text-emerald-400" />
             </div>
-            <span className="text-sm text-zinc-500">
+            <span className="text-sm text-zinc-600 dark:text-zinc-500">
               Agent is thinking
               <span className="inline-flex gap-0.5 ml-0.5">
                 <span className="animate-typing-dot opacity-70">.</span>
@@ -741,23 +823,23 @@ export function AgentFore({ system, models, contextLength }: Props) {
         {pendingCommand && (
           <div className="flex gap-3">
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-500/20">
-              <AlertCircle className="h-3.5 w-3.5 text-amber-400" />
+              <AlertCircle className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
             </div>
-            <div className="flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-zinc-800/90 px-3 py-2">
-              <p className="text-sm text-zinc-300">Run this command?</p>
-              <pre className="overflow-x-auto rounded bg-zinc-900 px-2 py-1.5 font-mono text-xs text-zinc-400">{pendingCommand.command}</pre>
+            <div className="flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-zinc-100 px-3 py-2 dark:bg-zinc-800/90">
+              <p className="text-sm text-zinc-700 dark:text-zinc-300">Run this command?</p>
+              <pre className="overflow-x-auto rounded bg-white px-2 py-1.5 font-mono text-xs text-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">{pendingCommand.command}</pre>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => handleCommandConfirm(true, pendingCommand)}
-                  className="rounded bg-emerald-500/20 px-3 py-1.5 text-xs font-medium text-emerald-400 transition hover:bg-emerald-500/30"
+                  className="rounded bg-emerald-500/20 px-3 py-1.5 text-xs font-medium text-emerald-600 transition hover:bg-emerald-500/30 dark:text-emerald-400"
                 >
                   Allow
                 </button>
                 <button
                   type="button"
                   onClick={() => handleCommandConfirm(false, pendingCommand)}
-                  className="rounded bg-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-600"
+                  className="rounded bg-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
                 >
                   Deny
                 </button>
@@ -768,16 +850,16 @@ export function AgentFore({ system, models, contextLength }: Props) {
       </div>
 
       {/* Input */}
-      <div className="shrink-0 border-t border-zinc-800 p-4">
+      <div className="shrink-0 border-t border-zinc-200 p-4 dark:border-zinc-800">
         {attachedFiles.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1.5">
             {attachedFiles.map((f) => (
               <span
                 key={f.fileId}
-                className="inline-flex items-center gap-1 rounded bg-zinc-800 px-2 py-1 text-[10px] text-zinc-300"
+                className="inline-flex items-center gap-1 rounded bg-zinc-200 px-2 py-1 text-[10px] text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
               >
                 {f.name}
-                <button type="button" onClick={() => removeAttachment(f.fileId)} className="rounded p-0.5 hover:bg-zinc-700">
+                <button type="button" onClick={() => removeAttachment(f.fileId)} className="rounded p-0.5 hover:bg-zinc-300 dark:hover:bg-zinc-700">
                   <X className="h-3 w-3" />
                 </button>
               </span>
@@ -801,10 +883,10 @@ export function AgentFore({ system, models, contextLength }: Props) {
             onFiles(e.dataTransfer.files)
           }}
         >
-          {/* Custom drag overlay: avoids browser's white "+ Copy" UI */}
+          {/* Custom drag overlay */}
           {inputDragOver && (
             <div
-              className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-emerald-500/60 bg-zinc-900/95 text-sm font-medium text-emerald-400"
+              className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-emerald-500/60 bg-white/95 text-sm font-medium text-emerald-600 dark:bg-zinc-900/95 dark:text-emerald-400"
               aria-hidden
             >
               Drop to attach
@@ -821,7 +903,7 @@ export function AgentFore({ system, models, contextLength }: Props) {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
             title="Attach files"
           >
             <Paperclip className="h-4 w-4" />
@@ -837,14 +919,14 @@ export function AgentFore({ system, models, contextLength }: Props) {
             }}
             placeholder="Message Agent Fore… (or drag files here)"
             rows={1}
-            className="h-11 min-w-0 flex-1 resize-none rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-500 outline-none focus:border-emerald-500/50 disabled:opacity-50"
+            className="h-11 min-w-0 flex-1 resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-800 placeholder:text-zinc-500 outline-none focus:border-emerald-500/50 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:placeholder:text-zinc-500"
             disabled={sending}
           />
           <button
             type="button"
             onClick={send}
             disabled={!canSend}
-            className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-emerald-500/20 px-4 text-sm font-medium text-emerald-400 transition hover:bg-emerald-500/30 disabled:opacity-40 disabled:hover:bg-emerald-500/20"
+            className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-emerald-500/20 px-4 text-sm font-medium text-emerald-600 transition hover:bg-emerald-500/30 disabled:opacity-40 disabled:hover:bg-emerald-500/20 dark:text-emerald-400"
           >
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             Send

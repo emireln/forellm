@@ -5,12 +5,39 @@
   "author": "Emir Lima",
   "license": "MIT",
   "main": "out/main/main.js",
+  "productName": "ForeLLM",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "postinstall": "electron-builder install-app-deps",
-    "agent": "tsx cli/agent-cli.ts"
+    "agent": "tsx cli/agent-cli.ts",
+    "clean:release": "node -e \"try { require('fs').rmSync('release-build', { recursive: true, force: true }) } catch (e) {}\"",
+    "dist": "npm run build && npm run clean:release && npx electron-builder",
+    "dist:no-binary": "npm run build && npm run clean:release && npx electron-builder",
+    "pre-dist": "cd .. && cargo build --release"
+  },
+  "build": {
+    "appId": "com.emireln.forellm",
+    "productName": "ForeLLM",
+    "directories": {
+      "output": "release-build"
+    },
+    "files": ["out/**/*"],
+    "extraResources": [
+      { "from": "../target/release", "to": ".", "filter": ["forellm.exe", "forellm"] }
+    ],
+    "win": {
+      "icon": "../assets/forellm.ico",
+      "executableName": "ForeLLM",
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "../assets/forellm.ico",
+      "uninstallerIcon": "../assets/forellm.ico"
+    }
   },
   "dependencies": {
     "@types/react-syntax-highlighter": "^15.5.13",
@@ -25,6 +52,7 @@
   },
   "devDependencies": {
     "@electron-toolkit/utils": "^4.0.0",
+    "electron-builder": "^25.0.0",
     "@types/node": "^22.15.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",

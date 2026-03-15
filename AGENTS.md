@@ -6,7 +6,7 @@ Instructions for AI agents contributing to this codebase.
 
 ## Project overview
 
-ForeLLM is a Rust CLI/TUI tool that matches LLM models against local system hardware (RAM, CPU, GPU). It detects system specs, loads a model database from embedded JSON, scores each model's fit, and presents results in an interactive terminal UI or classic table output. An optional desktop GUI (Electron) includes **Agent Fore**, an Ollama-powered chat agent with tools (read_document, execute_python, web_search, analyze images, run commands with user confirmation), streaming, and file attachments; see `forellm-gui/docs/AGENT_FORE_ARCHITECTURE.md`.
+ForeLLM is a Rust CLI/TUI tool that matches LLM models against local system hardware (RAM, CPU, GPU). It detects system specs, loads a model database from embedded JSON, scores each model's fit, and presents results in an interactive terminal UI or classic table output. An optional desktop GUI (Electron) includes **Model Explorer** (copy, download, link to Hugging Face per model; dark/light/system theme toggle) and **Agent Fore**, an Ollama-powered chat agent with tools (read_document, execute_python, web_search, analyze images, run commands with user confirmation), streaming, file attachments, and **export chat** (Markdown/TXT, with or without tool calls). No multi-model cart. See `forellm-gui/docs/AGENT_FORE_ARCHITECTURE.md` and `forellm-gui/docs/APP.md`.
 
 ## Language and toolchain
 
