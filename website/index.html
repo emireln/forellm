@@ -346,13 +346,13 @@
     .card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
 
     .features {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      align-items: start;
+      column-count: 4;
+      column-gap: 16px;
     }
 
     .feature {
+      break-inside: avoid;
+      margin-bottom: 16px;
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       background: var(--card);
@@ -360,6 +360,7 @@
       box-shadow: var(--neon-glow);
       transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
     }
+    .feature:last-child { margin-bottom: 0; }
     .feature:hover {
       transform: translateY(-2px);
       border-color: var(--border-hover);
@@ -374,15 +375,7 @@
       font-size: 1rem;
       color: var(--text);
     }
-    .feature span {
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.5;
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 4;
-      overflow: hidden;
-    }
+    .feature span { color: var(--muted); font-size: 14px; line-height: 1.5; }
     .feature code { font-size: 12px; background: var(--bg); padding: 2px 6px; border-radius: 4px; color: var(--accent); }
 
     .install-grid {
@@ -541,7 +534,7 @@
 
     @media (max-width: 960px) {
       .hero { grid-template-columns: 1fr; min-height: unset; padding-top: 40px; gap: 40px; }
-      .features { grid-template-columns: repeat(2, 1fr); }
+      .features { column-count: 2; }
     }
     @media (max-width: 720px) {
       .container { padding: 0 16px; }
@@ -558,8 +551,8 @@
       .stat-grid { gap: 10px; margin-top: 16px; }
       .stat { padding: 12px 14px; }
       .steps { grid-template-columns: 1fr; gap: 16px; }
-      .features { grid-template-columns: 1fr; gap: 12px; }
-      .feature { min-height: unset; padding: 16px; }
+      .features { column-count: 1; }
+      .feature { margin-bottom: 12px; min-height: unset; padding: 16px; }
       .install-grid { grid-template-columns: 1fr; gap: 16px; }
       .install-card { padding: 16px; }
       .install-card[style*="grid-column"] { grid-column: 1 / -1 !important; }
@@ -709,9 +702,9 @@
         <article class="feature reveal"><b>TUI</b><span>Interactive terminal: navigate models, filter, and check fit in real time.</span></article>
         <article class="feature reveal"><b>CLI</b><span>System info, fit ranking, search. Script and automate easily.</span></article>
         <article class="feature reveal"><b>REST API</b><span>Run <code>forellm serve</code> for integrations and automation.</span></article>
-        <article class="feature reveal"><b>Desktop GUI</b><span>Launcher first: open the GUI, run Agent in terminal, or run ForeLLM TUI—one click, no commands. Model Explorer (copy, download, link to Hugging Face), theme toggle (dark/light/system). Home button returns to launcher.</span></article>
-        <article class="feature reveal"><b>Agent Fore</b><span>AI chat (GUI or CLI): streaming, file attachments, image analysis (vision model), tools (read docs, analyze images, Python, web search, run commands). Export chat to Markdown or TXT. Multiple agents. Start from launcher “Run Agent in Terminal” or <code>npm run agent</code> in forellm-gui; <code>/help</code> for commands.</span></article>
         <article class="feature reveal"><b>Multi-GPU</b><span>Combined GPU memory awareness for multi-card setups.</span></article>
+        <article class="feature reveal"><b>Desktop GUI</b><span>Launcher first: open the GUI, run Agent in terminal, or run ForeLLM TUI—one click, no commands. Model Explorer (copy, download, link to Hugging Face), theme toggle (dark/light/system). Home button returns to launcher.</span></article>
+        <article class="feature reveal"><b>Agent Fore</b><span>AI chat (GUI or CLI): Several tools. Export chat to Markdown or TXT. Multiple agents. Start from launcher “Run Agent in Terminal” or <code>npm run agent</code> in forellm-gui; <code>/help</code> for commands.</span></article>
         <article class="feature reveal"><b>MoE</b><span>Correct memory and run-mode handling for Mixtral, DeepSeek-V2, etc.</span></article>
         <article class="feature reveal"><b>Providers</b><span>Ollama, llama.cpp, MLX—detect installed models and run commands.</span></article>
         <article class="feature reveal"><b>Quantization</b><span>Picks the best quant that fits your VRAM/RAM.</span></article>
